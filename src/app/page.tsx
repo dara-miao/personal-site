@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Image from "next/image";
 import { AsciiBackground } from "@/components/ascii-background";
 import { AsciiCorner } from "@/components/ascii-corner";
@@ -38,7 +39,14 @@ export default function Home() {
 
               <section className="home-section">
                 {site.paragraphs.map((paragraph, index) => (
-                  <WorkParagraph key={index} parts={paragraph} />
+                  <Fragment key={index}>
+                    {index > 0 ? (
+                      <div className="prose-divider" aria-hidden="true">
+                        · · · · ·
+                      </div>
+                    ) : null}
+                    <WorkParagraph parts={paragraph} />
+                  </Fragment>
                 ))}
               </section>
 

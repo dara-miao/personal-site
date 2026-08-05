@@ -5,29 +5,224 @@ import { createNoise3D } from "simplex-noise";
 
 /**
  * Density ramp — sparse to flowing (warm minimal, not matrix).
- * Leading space keeps the cream page visible between bands.
+ * Leading spaces keep the cream page visible between bands.
  */
-const GLYPHS = [" ", "·", "·", ".", "∘", "─", "~", "≈", "∿"] as const;
+const GLYPHS = [" ", " ", " ", "·", ".", "∘", "─", "~", "≈", "∿"] as const;
+const STAR_GLYPHS = ["'", "+", "*"] as const;
+/** Field values below this render as empty — raises bar for visible glyphs */
+const DENSITY_FLOOR = 0.28;
+const PEAK_THRESHOLD = 0.97;
 
-const CELL_PX = 12;
-const BASE_ALPHA = 0.1;
-const CURSOR_RADIUS = 160;
-const CURSOR_BOOST = 0.09;
-const CURSOR_PUSH = 14;
+const CELL_PX = 13;
+const BASE_ALPHA = 0.11;
+/** Fraction of viewport width for bio text legibility fade */
+const TEXT_ZONE_RADIUS = 0.34;
+const CURSOR_RADIUS = 130;
+const CURSOR_BOOST = 0.07;
+const CURSOR_PUSH = 10;
 const FLOW_STRENGTH = 2.8;
 const SCROLL_DRIFT = 0.012;
 
-/** Warm near-black and accent grays from site palette */
-const GLYPH_COLOR = "26, 26, 24";
-const GLYPH_ACCENT = "110, 109, 104";
+type Rgb = { r: number; g: number; b: number };
+
+const OMBRE_VERTICAL_START = 0.22;
+const OMBRE_VERTICAL_END = 0.38;
+const OMBRE_VERTICAL_ACCENT = 0.38;
+const OMBRE_HOVER_BLOOM = 0.4;
+const OMBRE_HOVER_ACCENT = 0.48;
+const OMBRE_MID_BELL_WIDTH = 0.075;
+const OMBRE_PEAK_ACCENT = 0.45;
+/** Boost ombre wash on self-drifting aurora bands (temporal + flow activity) */
+const OMBRE_MOTION_TINT = 0.62;
+const OMBRE_MOTION_ACCENT = 0.48;
+const MOTION_SAMPLE_MS = 32;
+const MOTION_FIELD_SCALE = 11;
+const MOTION_FLOW_SCALE = 2.4;
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
+function parseHexColor(hex: string): Rgb {
+  const normalized = hex.trim().replace("#", "");
+  if (normalized.length === 3) {
+    return {
+      r: parseInt(normalized[0]! + normalized[0], 16),
+      g: parseInt(normalized[1]! + normalized[1], 16),
+      b: parseInt(normalized[2]! + normalized[2], 16),
+    };
+  }
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function lerpColor(from: Rgb, to: Rgb, t: number): Rgb {
+  const mix = clamp01(t);
+  return {
+    r: Math.round(lerp(from.r, to.r, mix)),
+    g: Math.round(lerp(from.g, to.g, mix)),
+    b: Math.round(lerp(from.b, to.b, mix)),
+  };
+}
+
+function readOmbrePalette(): {
+  base: Rgb;
+  accent: Rgb;
+  ombreAccent: Rgb;
+  accentMix: number;
+  start: Rgb;
+  end: Rgb;
+} {
+  const style = getComputedStyle(document.documentElement);
+  const accentMixRaw = parseFloat(
+    style.getPropertyValue("--ascii-ombre-accent-mix").trim(),
+  );
+  return {
+    base: parseHexColor(
+      style.getPropertyValue("--ascii-color").trim() || "#1a1a18",
+    ),
+    accent: parseHexColor(
+      style.getPropertyValue("--color-text-secondary").trim() || "#6e6d68",
+    ),
+    ombreAccent: parseHexColor(
+      style.getPropertyValue("--ascii-ombre-accent").trim() || "#5a9fd4",
+    ),
+    accentMix: Number.isFinite(accentMixRaw) ? accentMixRaw : 0.45,
+    start: parseHexColor(
+      style.getPropertyValue("--ascii-ombre-start").trim() || "#fdfdfb",
+    ),
+    end: parseHexColor(
+      style.getPropertyValue("--ascii-ombre-end").trim() || "#d4a574",
+    ),
+  };
+}
+
+/** Vertical ombre + optional cursor bloom — editorial warm tones, not neon */
+function glyphRgb(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  pointer: { x: number; y: number; inside: boolean },
+  peakFactor: number,
+  motionFactor: number,
+  palette: {
+    base: Rgb;
+    accent: Rgb;
+    ombreAccent: Rgb;
+    accentMix: number;
+    start: Rgb;
+    end: Rgb;
+  },
+  hoverBloom: boolean,
+): string {
+  const verticalT = clamp01(y / Math.max(height, 1));
+  const topWash = (1 - verticalT) ** 1.4;
+  const bottomWarm = verticalT ** 1.1;
+  const accentMix = palette.accentMix;
+
+  let color = palette.base;
+  color = lerpColor(color, palette.start, topWash * OMBRE_VERTICAL_START);
+  color = lerpColor(color, palette.end, bottomWarm * OMBRE_VERTICAL_END);
+
+  if (accentMix > 0) {
+    const midField =
+      Math.exp(-((verticalT - 0.44) ** 2) / OMBRE_MID_BELL_WIDTH) * accentMix;
+    color = lerpColor(
+      color,
+      palette.ombreAccent,
+      midField * OMBRE_VERTICAL_ACCENT,
+    );
+  }
+
+  if (hoverBloom && pointer.inside) {
+    const dist = Math.hypot(x - pointer.x, y - pointer.y);
+    if (dist < CURSOR_RADIUS) {
+      const falloff = (1 - dist / CURSOR_RADIUS) ** 2;
+      const bloomTarget =
+        verticalT < 0.42
+          ? lerpColor(
+              palette.start,
+              palette.ombreAccent,
+              0.38 + accentMix * OMBRE_HOVER_ACCENT,
+            )
+          : verticalT < 0.62
+            ? lerpColor(
+                palette.end,
+                palette.ombreAccent,
+                accentMix * OMBRE_HOVER_ACCENT * 0.55,
+              )
+            : palette.end;
+      color = lerpColor(color, bloomTarget, falloff * OMBRE_HOVER_BLOOM);
+    }
+  }
+
+  if (motionFactor > 0.04) {
+    const motionWash =
+      verticalT < 0.38
+        ? lerpColor(palette.start, palette.ombreAccent, 0.58)
+        : verticalT < 0.58
+          ? lerpColor(palette.ombreAccent, palette.end, 0.72)
+          : lerpColor(palette.end, palette.ombreAccent, 0.48);
+    color = lerpColor(color, motionWash, motionFactor * OMBRE_MOTION_TINT);
+    if (accentMix > 0) {
+      color = lerpColor(
+        color,
+        palette.ombreAccent,
+        motionFactor * OMBRE_MOTION_ACCENT * accentMix,
+      );
+    }
+  }
+
+  if (peakFactor > 0.15) {
+    color = lerpColor(color, palette.accent, peakFactor * OMBRE_PEAK_ACCENT);
+  }
+
+  return `${color.r}, ${color.g}, ${color.b}`;
+}
+
+function effectiveField(field: number): number {
+  if (field < DENSITY_FLOOR) return 0;
+  return clamp01((field - DENSITY_FLOOR) / (1 - DENSITY_FLOOR));
+}
+
 function glyphIndex(field: number): number {
   const idx = Math.floor(clamp01(field) * GLYPHS.length);
   return Math.min(idx, GLYPHS.length - 1);
+}
+
+function pickGlyph(field: number): string {
+  if (field >= PEAK_THRESHOLD) {
+    const t = (field - PEAK_THRESHOLD) / (1 - PEAK_THRESHOLD);
+    const idx = Math.floor(t * STAR_GLYPHS.length);
+    return STAR_GLYPHS[Math.min(idx, STAR_GLYPHS.length - 1)]!;
+  }
+  const remapped = effectiveField(field);
+  if (remapped === 0) return " ";
+  return GLYPHS[glyphIndex(remapped)]!;
+}
+
+/** How much a cell is actively drifting — temporal field change + flow swing + density */
+function motionActivity(
+  field: number,
+  fieldPrev: number,
+  flow: { dx: number; dy: number },
+  flowPrev: { dx: number; dy: number },
+): number {
+  const temporal = clamp01(Math.abs(field - fieldPrev) * MOTION_FIELD_SCALE);
+  const flowDelta = Math.hypot(flow.dx - flowPrev.dx, flow.dy - flowPrev.dy);
+  const flowSwing = clamp01(flowDelta / MOTION_FLOW_SCALE);
+  const density = effectiveField(field);
+  const glyphDensity = density * density;
+
+  return clamp01(temporal * 0.52 + flowSwing * 0.33 + glyphDensity * 0.22);
 }
 
 export function AsciiBackground() {
@@ -56,7 +251,8 @@ export function AsciiBackground() {
       ) || 0.15;
     const baseAlpha = BASE_ALPHA * (opacityScale / 0.15);
     const cursorBoost = CURSOR_BOOST * (opacityScale / 0.15);
-    const maxAlpha = 0.2 * (opacityScale / 0.15);
+    const maxAlpha = 0.16 * (opacityScale / 0.15);
+    const palette = readOmbrePalette();
 
     let width = 0;
     let height = 0;
@@ -119,6 +315,52 @@ export function AsciiBackground() {
       };
     };
 
+    /** Static dot grid for prefers-reduced-motion — no frozen aurora frame */
+    const drawStaticPattern = () => {
+      ctx.clearRect(0, 0, width, height);
+      ctx.font = `${CELL_PX}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const cols = Math.ceil(width / CELL_PX) + 1;
+      const rows = Math.ceil(height / CELL_PX) + 1;
+      const cx = width * 0.5;
+      const cy = height * 0.35;
+
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          if ((col + row) % 4 !== 0) continue;
+
+          const baseX = col * CELL_PX + CELL_PX * 0.5;
+          const baseY = row * CELL_PX + CELL_PX * 0.5;
+
+          const textZoneDist = Math.hypot(baseX - cx, baseY - cy);
+          const textZoneFactor = Math.min(
+            1,
+            textZoneDist / (width * TEXT_ZONE_RADIUS),
+          );
+          const zoneAlpha = 0.35 + textZoneFactor * 0.65;
+
+          const hash = (col * 17 + row * 31) % 100;
+          const alpha = baseAlpha * zoneAlpha * (0.55 + (hash / 100) * 0.45);
+          const rgb = glyphRgb(
+            baseX,
+            baseY,
+            width,
+            height,
+            pointer,
+            0,
+            0,
+            palette,
+            false,
+          );
+
+          ctx.fillStyle = `rgba(${rgb}, ${alpha})`;
+          ctx.fillText("·", baseX, baseY);
+        }
+      }
+    };
+
     const draw = () => {
       ctx.clearRect(0, 0, width, height);
       ctx.font = `${CELL_PX}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
@@ -136,10 +378,13 @@ export function AsciiBackground() {
           const baseY = row * CELL_PX + CELL_PX * 0.5;
 
           const field = auroraField(col, row, time);
-          const glyph = GLYPHS[glyphIndex(field)]!;
+          const glyph = pickGlyph(field);
           if (glyph === " ") continue;
 
-          const flow = reducedMotion ? { dx: 0, dy: 0 } : flowOffset(col, row, time);
+          const flow = flowOffset(col, row, time);
+          const fieldPrev = auroraField(col, row, time - MOTION_SAMPLE_MS);
+          const flowPrev = flowOffset(col, row, time - MOTION_SAMPLE_MS);
+          const motionRaw = motionActivity(field, fieldPrev, flow, flowPrev);
 
           let dx = flow.dx;
           let dy = flow.dy;
@@ -158,24 +403,36 @@ export function AsciiBackground() {
             }
           }
 
-          const ambient = reducedMotion
-            ? 0
-            : Math.sin(col * 0.22 + time * 0.0006) *
-                Math.cos(row * 0.18 + time * 0.00045) *
-                1.2;
+          const ambient =
+            Math.sin(col * 0.22 + time * 0.0006) *
+            Math.cos(row * 0.18 + time * 0.00045) *
+            1.2;
 
           const x = baseX + dx;
           const y = baseY + dy + ambient + scrollOffset;
 
           const textZoneDist = Math.hypot(baseX - cx, baseY - cy);
-          const textZoneFactor = Math.min(1, textZoneDist / (width * 0.28));
-          const zoneAlpha = 0.5 + textZoneFactor * 0.5;
+          const textZoneFactor = Math.min(
+            1,
+            textZoneDist / (width * TEXT_ZONE_RADIUS),
+          );
+          const zoneAlpha = 0.35 + textZoneFactor * 0.65;
 
-          const peakFactor = field > 0.62 ? (field - 0.62) / 0.38 : 0;
+          const peakFactor = field > 0.68 ? (field - 0.68) / 0.32 : 0;
+          const motionFactor = motionRaw * (0.28 + textZoneFactor * 0.72);
           const alpha = Math.min(maxAlpha, (baseAlpha + boost) * zoneAlpha);
-          const rgb =
-            peakFactor > 0.15 ? GLYPH_ACCENT : GLYPH_COLOR;
-          const peakAlpha = alpha * (1 + peakFactor * 0.35);
+          const rgb = glyphRgb(
+            baseX,
+            baseY,
+            width,
+            height,
+            pointer,
+            peakFactor,
+            motionFactor,
+            palette,
+            true,
+          );
+          const peakAlpha = alpha * (1 + peakFactor * 0.25);
 
           ctx.fillStyle = `rgba(${rgb}, ${peakAlpha})`;
           ctx.fillText(glyph, x, y);
@@ -184,10 +441,6 @@ export function AsciiBackground() {
     };
 
     const tick = () => {
-      if (reducedMotion) {
-        draw();
-        return;
-      }
       if (visible) {
         time += 16;
         draw();
@@ -220,10 +473,19 @@ export function AsciiBackground() {
       visible = !document.hidden;
     };
 
-    resize();
-    tick();
+    const render = () => {
+      if (reducedMotion) drawStaticPattern();
+      else draw();
+    };
 
-    const ro = new ResizeObserver(resize);
+    resize();
+    render();
+    if (!reducedMotion) tick();
+
+    const ro = new ResizeObserver(() => {
+      resize();
+      render();
+    });
     ro.observe(root);
 
     window.addEventListener("pointermove", onPointerMove, { passive: true });

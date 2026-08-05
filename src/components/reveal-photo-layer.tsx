@@ -4,6 +4,7 @@ import Image from "next/image";
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { EmailCopyLink } from "@/components/email-copy-link";
+import { useRevealOmbreAmbient } from "@/components/reveal-ombre-ambient";
 import { RevealScrollOverlay } from "@/components/reveal-scroll-overlay";
 import {
   collageCanvas,
@@ -13,8 +14,11 @@ import {
 } from "@/content/site";
 
 export function RevealPhotoLayer() {
+  const layerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const [visiblePhotos, setVisiblePhotos] = useState<Set<number>>(new Set());
+
+  useRevealOmbreAmbient(layerRef);
 
   useEffect(() => {
     const grid = gridRef.current;
@@ -49,7 +53,7 @@ export function RevealPhotoLayer() {
   }, []);
 
   return (
-    <div className="reveal-layer">
+    <div ref={layerRef} className="reveal-layer">
       <RevealScrollOverlay />
       <div className="reveal-layer-inner">
         <div

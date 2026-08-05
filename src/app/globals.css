@@ -11,12 +11,17 @@
   --color-selection-bg: #00000012;
   --color-tooltip-bg: #1a1a1a;
   --color-tooltip-text: #fff;
-  --reveal-bg: #d3d3d3;
+  --reveal-bg: var(--color-bg);
   --reveal-footer-secondary: #6e6d68;
   --reveal-footer-hover: #1a1a18;
-  --ascii-opacity: 0.13;
+  --ascii-opacity: 0.18;
   --ascii-color: #1a1a18;
-  --ascii-corner-opacity: 0.3;
+  --ascii-ombre-start: #fdfdfb;
+  --ascii-ombre-end: #d4a574;
+  /* Cornflower/sky blue echo of headshot shirt (#4b89c0) — set mix to 0 to disable */
+  --ascii-ombre-accent: #4b89c0;
+  --ascii-ombre-accent-mix: 0.45;
+  --ascii-corner-opacity: 0.52;
 }
 
 @theme inline {
@@ -149,10 +154,50 @@ body {
   bottom: 36px;
   z-index: 1;
   width: clamp(96px, 13vw, 148px);
-  height: auto;
   opacity: var(--ascii-corner-opacity);
   pointer-events: none;
   user-select: none;
+  overflow: hidden;
+  --ascii-corner-bloom: 0;
+}
+
+.ascii-corner__image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Ombre tint — masked to letter shapes; bloom shifts toward accent near cursor */
+.ascii-corner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    155deg,
+    color-mix(
+      in srgb,
+      var(--ascii-ombre-start) calc(24% + var(--ascii-corner-bloom) * 18%),
+      transparent
+    ),
+    color-mix(
+      in srgb,
+      var(--ascii-ombre-end) calc(28% + var(--ascii-corner-bloom) * 16%),
+      transparent
+    ) 44%,
+    color-mix(
+      in srgb,
+      var(--ascii-ombre-accent) calc(48% + var(--ascii-corner-bloom) * 58%),
+      transparent
+    ) 100%
+  );
+  -webkit-mask-image: url("/dm-corner.png");
+  mask-image: url("/dm-corner.png");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  mix-blend-mode: multiply;
+  pointer-events: none;
 }
 
 .page-main {
@@ -187,7 +232,120 @@ body {
   z-index: 1;
   height: 100svh;
   height: 100dvh;
-  background: var(--reveal-bg);
+  --collage-gutter: 5px;
+  --reveal-ombre-accent-strength: 0.38;
+  --reveal-ombre-warm-strength: 0.32;
+  --reveal-ombre-cream-strength: 0.26;
+  --reveal-ombre-pulse: 0.88;
+  --reveal-drift-1-x: 0%;
+  --reveal-drift-1-y: 0%;
+  --reveal-drift-2-x: 0%;
+  --reveal-drift-2-y: 0%;
+  --reveal-drift-3-x: 0%;
+  --reveal-drift-3-y: 0%;
+  --reveal-drift-4-x: 0%;
+  --reveal-drift-4-y: 0%;
+  --reveal-drift-angle: 155deg;
+  isolation: isolate;
+  /* Base ombre on the layer itself — visible in margins, footer, and gutters */
+  background:
+    radial-gradient(
+      ellipse 120% 90% at calc(22% + var(--reveal-drift-1-x))
+        calc(10% + var(--reveal-drift-1-y)),
+      color-mix(
+        in srgb,
+        var(--ascii-ombre-accent)
+          calc(var(--reveal-ombre-accent-strength) * 100%),
+        var(--reveal-bg)
+      ),
+      var(--reveal-bg) 62%
+    ),
+    radial-gradient(
+      ellipse 110% 85% at calc(80% + var(--reveal-drift-2-x))
+        calc(82% + var(--reveal-drift-2-y)),
+      color-mix(
+        in srgb,
+        var(--ascii-ombre-end)
+          calc(var(--reveal-ombre-warm-strength) * 100%),
+        var(--reveal-bg)
+      ),
+      var(--reveal-bg) 58%
+    ),
+    radial-gradient(
+      ellipse 100% 75% at calc(48% + var(--reveal-drift-3-x))
+        calc(45% + var(--reveal-drift-3-y)),
+      color-mix(
+        in srgb,
+        var(--ascii-ombre-start)
+          calc(var(--reveal-ombre-cream-strength) * 100%),
+        var(--reveal-bg)
+      ),
+      var(--reveal-bg) 65%
+    ),
+    linear-gradient(
+      var(--reveal-drift-angle),
+      color-mix(in srgb, var(--ascii-ombre-end) 14%, var(--reveal-bg)) 0%,
+      var(--reveal-bg) 38%,
+      color-mix(
+          in srgb,
+          var(--ascii-ombre-accent) calc(16% + var(--ascii-ombre-accent-mix) * 14%),
+          var(--reveal-bg)
+        )
+        62%,
+      color-mix(in srgb, var(--ascii-ombre-end) 20%, var(--reveal-bg)) 100%
+    );
+}
+
+/*
+ * Self-flowing ombre overlay — wide drifting washes, no cursor interaction.
+ * Shows in gutters, margins, and footer; collage cells stay solid for imagery.
+ */
+.reveal-layer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: calc(var(--reveal-ombre-pulse) * 0.85);
+  background:
+    radial-gradient(
+      ellipse 115% 80% at calc(18% + var(--reveal-drift-1-x))
+        calc(12% + var(--reveal-drift-1-y)),
+      color-mix(in srgb, var(--ascii-ombre-accent) 34%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      ellipse 105% 72% at calc(82% + var(--reveal-drift-2-x))
+        calc(78% + var(--reveal-drift-2-y)),
+      color-mix(in srgb, var(--ascii-ombre-end) 30%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 95% 68% at calc(52% + var(--reveal-drift-3-x))
+        calc(42% + var(--reveal-drift-3-y)),
+      color-mix(in srgb, var(--ascii-ombre-start) 22%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 88% 60% at calc(65% + var(--reveal-drift-4-x))
+        calc(28% + var(--reveal-drift-4-y)),
+      color-mix(in srgb, var(--ascii-ombre-accent) 20%, transparent),
+      transparent 52%
+    ),
+    linear-gradient(
+      var(--reveal-drift-angle),
+      color-mix(in srgb, var(--ascii-ombre-end) 12%, transparent) 0%,
+      transparent 30%,
+      color-mix(in srgb, var(--ascii-ombre-accent) 16%, transparent) 55%,
+      transparent 72%,
+      color-mix(in srgb, var(--ascii-ombre-end) 14%, transparent) 100%
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-layer::before {
+    opacity: 0.86;
+  }
 }
 
 .reveal-overlay {
@@ -226,17 +384,19 @@ body {
   min-height: 0;
   width: 100%;
   aspect-ratio: var(--collage-w) / var(--collage-h);
-  background: var(--reveal-bg);
+  background: transparent;
 }
 
 .collage-cell {
   position: absolute;
-  left: calc(100% * var(--layout-x) / var(--collage-w));
-  top: calc(100% * var(--layout-y) / var(--collage-h));
-  width: calc(100% * var(--layout-w) / var(--collage-w));
-  height: calc(100% * var(--layout-h) / var(--collage-h));
+  left: calc(100% * var(--layout-x) / var(--collage-w) + var(--collage-gutter) / 2);
+  top: calc(100% * var(--layout-y) / var(--collage-h) + var(--collage-gutter) / 2);
+  width: calc(100% * var(--layout-w) / var(--collage-w) - var(--collage-gutter));
+  height: calc(100% * var(--layout-h) / var(--collage-h) - var(--collage-gutter));
   overflow: hidden;
+  border-radius: 2px;
   background: var(--reveal-bg);
+  box-shadow: 0 2px 12px rgb(26 26 24 / 6%);
   opacity: 0;
   transform: translateY(24px);
   transition:
@@ -269,7 +429,7 @@ body {
 
 @media (hover: hover) {
   .collage-cell--visible:hover {
-    box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+    box-shadow: 0 8px 28px rgb(26 26 24 / 10%);
   }
 
   .collage-cell--visible:hover .collage-image {
@@ -335,6 +495,15 @@ body {
 
 .prose:last-child {
   margin-bottom: 0;
+}
+
+.prose-divider {
+  margin: 4px 0 20px;
+  font-size: 11px;
+  letter-spacing: 0.4em;
+  color: var(--color-text-tertiary);
+  opacity: 0.4;
+  user-select: none;
 }
 
 .work-link,
