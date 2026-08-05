@@ -1,6 +1,6 @@
 # daramiao.com
 
-Source for my personal site — a simple page with who I am, what I'm working on, and how to reach me.
+Source for my personal site: a simple page with who I am, what I'm working on, and how to reach me.
 
 **[daramiao.com](https://daramiao.com)**
 
