@@ -1,84 +1,67 @@
-import { ExternalLink } from "@/components/external-link";
-import { ProfileCard } from "@/components/profile-card";
-import { ScrollReveal } from "@/components/scroll-reveal";
+import Image from "next/image";
+import { EmailCopyLink } from "@/components/email-copy-link";
+import { IntroSplash } from "@/components/intro-splash";
+import { RevealPhotoLayer } from "@/components/reveal-photo-layer";
+import { WorkParagraph } from "@/components/work-paragraph";
 import { site } from "@/content/site";
-
-function SectionBlock({
-  title,
-  items,
-  delay = 0,
-}: {
-  title: string;
-  items: readonly string[];
-  delay?: number;
-}) {
-  return (
-    <ScrollReveal delay={delay}>
-      <section className="home-section">
-        <h2 className="section-title">{title}</h2>
-        <ul className="space-y-4">
-          {items.map((item) => (
-            <li key={item} className="body-text m-0">
-              {item}
-            </li>
-          ))}
-        </ul>
-      </section>
-    </ScrollReveal>
-  );
-}
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background">
-      <main className="mx-auto w-full max-w-[740px] px-6 pb-16 pt-24">
-        <ScrollReveal>
-          <ProfileCard name={site.name} headline={site.headline} />
-        </ScrollReveal>
+    <>
+      <IntroSplash>
+        <div className="page-content">
+          <main className="page-main">
+            <div className="page-inner">
+              <div className="mb-14">
+                <div className="mb-6 h-[96px] w-[96px] overflow-hidden rounded-[14px] bg-[var(--color-bg-subtle)]">
+                  <Image
+                    src="/headshot.png"
+                    alt={site.name}
+                    width={384}
+                    height={384}
+                    priority
+                    unoptimized
+                    className="h-full w-full object-cover object-[center_20%]"
+                  />
+                </div>
+                <h1 className="m-0 text-[16px] font-medium leading-[2] tracking-[-0.3px] text-[#1a1a18]">
+                  {site.name}
+                </h1>
+                <p className="-mt-1.5 m-0 text-[16px] font-medium tracking-[-0.3px] text-[var(--color-text-primary)]">
+                  {site.role}
+                </p>
+              </div>
 
-        <ScrollReveal delay={80}>
-          <div className="mb-14 max-w-[560px] space-y-4">
-            {site.intro.map((paragraph) => (
-              <p key={paragraph} className="body-text m-0">
-                {paragraph}
-              </p>
-            ))}
-          </div>
-        </ScrollReveal>
-
-        <div className="space-y-14">
-          <SectionBlock title="what i'm up to" items={site.upTo} />
-          <SectionBlock
-            title="what i think about"
-            items={site.thinkAbout}
-            delay={80}
-          />
-          <SectionBlock
-            title="what i like to create"
-            items={site.create}
-            delay={80}
-          />
-
-          <ScrollReveal delay={120}>
-            <footer className="home-section border-t border-border pt-12">
-              <h2 className="section-title">find me elsewhere</h2>
-              <p className="body-text m-0 mb-4">
-                <ExternalLink href={`mailto:${site.email}`}>
-                  {site.email}
-                </ExternalLink>
-              </p>
-              <ul className="flex min-h-[44px] flex-wrap items-center gap-x-5 gap-y-3">
-                {site.social.map(({ label, href }) => (
-                  <li key={label}>
-                    <ExternalLink href={href}>{label}</ExternalLink>
-                  </li>
+              <section className="home-section">
+                {site.paragraphs.map((paragraph, index) => (
+                  <WorkParagraph key={index} parts={paragraph} />
                 ))}
-              </ul>
-              <p className="body-text m-0 pt-8 text-muted">{site.footer}</p>
-            </footer>
-          </ScrollReveal>
+              </section>
+
+              <section className="mt-auto pt-2">
+                <div className="flex min-h-[44px] flex-wrap items-center gap-x-5 gap-y-3">
+                  {site.social.map(({ label, href }) => (
+                    <a
+                      key={label}
+                      href={href}
+                      className="social-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {label}
+                    </a>
+                  ))}
+                  <EmailCopyLink email={site.email} />
+                </div>
+              </section>
+            </div>
+          </main>
         </div>
-      </main>
-    </div>
+      </IntroSplash>
+
+      <div className="reveal-scroll-spacer" aria-hidden />
+
+      <RevealPhotoLayer />
+    </>
   );
 }

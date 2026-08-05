@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
-import { site } from "@/content/site";
 
 const geist = Geist({
   variable: "--font-geist",
@@ -9,25 +8,28 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: site.name,
-  description: `${site.tagline} ${site.headline}`,
+  title: "Dara Miao",
+  description:
+    "Business and AI at USC Marshall. GTM at MindFort AI (YC X25).",
   openGraph: {
-    title: site.name,
-    description: site.tagline,
+    title: "Dara Miao",
+    description:
+      "Business and AI at USC Marshall. GTM at MindFort AI (YC X25).",
     type: "website",
     url: "https://daramiao.com",
   },
   twitter: {
     card: "summary_large_image",
-    title: site.name,
-    description: site.tagline,
+    title: "Dara Miao",
+    description:
+      "Business and AI at USC Marshall. GTM at MindFort AI (YC X25).",
   },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geist.variable} h-full scroll-smooth`}>
-      <body className="min-h-full antialiased">{children}</body>
+    <html lang="en" className={`${geist.variable} scroll-smooth`}>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

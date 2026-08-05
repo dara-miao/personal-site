@@ -1,46 +1,151 @@
+export const collageCanvas = {
+  width: 979,
+  height: 729,
+} as const;
+
 export const site = {
-  name: "dara miao",
-  headline: "gtm @ MindFort AI (YC X25) · summer fellow @ Dorm Room Fund · USC Marshall",
-  tagline: "i take startups from 1 to 100.",
-  location: "los angeles, ca",
+  name: "Dara Miao",
+  role: "Business and AI at USC Marshall",
   email: "daramiao19@gmail.com",
   social: [
+    { label: "LinkedIn", href: "https://www.linkedin.com/in/dara-miao/" },
+    { label: "Instagram", href: "https://www.instagram.com/dara.miao/" },
+    { label: "X", href: "https://x.com/DaraMiaoX" },
+  ],
+  photos: [
     {
-      label: "linkedin",
-      href: "https://www.linkedin.com/in/dara-miao/",
+      src: "/photos/ted-talk.png",
+      alt: "Speaking on the TED stage",
+      width: 800,
+      height: 1024,
+      layout: { x: 24, y: 23, w: 229, h: 279 },
+      objectPosition: "49.9% 51.8%",
     },
     {
-      label: "instagram",
-      href: "https://www.instagram.com/dara.miao/",
+      src: "/photos/golf-swing.png",
+      alt: "Golf swing on the course",
+      width: 1024,
+      height: 682,
+      layout: { x: 274, y: 23, w: 338, h: 224 },
+      objectPosition: "49.6% 49.5%",
     },
     {
-      label: "x",
-      href: "https://x.com/DaraMiaoX",
+      src: "/photos/founders-dinner.png",
+      alt: "USC Founders Table dinner",
+      width: 1024,
+      height: 621,
+      layout: { x: 634, y: 22, w: 368, h: 225 },
+      objectPosition: "49.3% 49.4%",
+    },
+    {
+      src: "/photos/troylabs-checks.png",
+      alt: "TroyLabs Launch winner checks",
+      width: 1024,
+      height: 819,
+      layout: { x: 387, y: 263, w: 293, h: 234 },
+      objectPosition: "49.4% 49.5%",
+    },
+    {
+      src: "/photos/rocket-frame-outdoors.png",
+      alt: "Working on a rocket frame outdoors",
+      width: 1024,
+      height: 767,
+      layout: { x: 699, y: 264, w: 304, h: 234 },
+      objectPosition: "53.6% 48.0%",
+    },
+    {
+      src: "/photos/hiking-group.png",
+      alt: "Hiking with friends in the mountains",
+      width: 1024,
+      height: 768,
+      layout: { x: 24, y: 320, w: 343, h: 224 },
+      objectPosition: "49.7% 50.7%",
+    },
+    {
+      src: "/photos/rocket-launch.png",
+      alt: "Rocket launch at the desert range",
+      width: 1024,
+      height: 576,
+      layout: { x: 531, y: 512, w: 471, h: 238 },
+      objectPosition: "49.9% 50.0%",
+    },
+    {
+      src: "/photos/launch-check-flowers.png",
+      alt: "Launch check presentation with flowers",
+      width: 1024,
+      height: 819,
+      layout: { x: 24, y: 561, w: 281, h: 190 },
+      objectPosition: "50.0% 55.9%",
+    },
+    {
+      src: "/photos/agt-audience.png",
+      alt: "In the America's Got Talent audience",
+      width: 768,
+      height: 1024,
+      layout: { x: 324, y: 561, w: 188, h: 190 },
+      objectPosition: "44.7% 55.9%",
     },
   ],
-  intro: [
-    "hi, i'm dara — 🍁 → LA, studying business + AI at USC Marshall, doing gtm at a YC startup, and hosting founder dinners across SoCal.",
-    "bullish on the fact that you don't need permission to be in the room. nobody at a startup asks how old you are — they ask if you can solve the problem.",
-    "i'm documenting the journey of doing things i thought i had to wait years for, and bringing you into every room i find my way into.",
+  paragraphs: [
+    [
+      { type: "text" as const, value: "I do GTM at " },
+      {
+        type: "link" as const,
+        href: "https://www.mindfort.ai/",
+        label: "MindFort AI (YC X25)",
+      },
+      {
+        type: "text" as const,
+        value:
+          ", where AI agents find and patch vulnerabilities before attackers do. Backed by Y Combinator and Soma Capital.",
+      },
+    ],
+    [
+      {
+        type: "text" as const,
+        value: "During the school year, I am a product manager at ",
+      },
+      { type: "link" as const, href: "https://troylabs.vc/", label: "TroyLabs" },
+      {
+        type: "text" as const,
+        value: ", USC's startup accelerator, where I PM'd for portcos like ",
+      },
+      { type: "link" as const, href: "https://www.withnara.com/", label: "Nara" },
+      { type: "text" as const, value: " and " },
+      { type: "link" as const, href: "https://revisent.com/", label: "Revisent" },
+      { type: "text" as const, value: ", winning " },
+      {
+        type: "link" as const,
+        href: "https://www.linkedin.com/posts/dara-miao_startuplaunch-startupaccelerator-win-activity-7412530621924929536-3ROi",
+        label: "Launch '25",
+      },
+      {
+        type: "text" as const,
+        value: " and driving 3 pilot deployments and a 35% accuracy improvement.",
+      },
+    ],
+    [
+      { type: "text" as const, value: "I'm exploring VC as a summer fellow at " },
+      {
+        type: "link" as const,
+        href: "https://www.dormroomfund.com/",
+        label: "Dorm Room Fund",
+      },
+      { type: "text" as const, value: "; sending rockets to space through " },
+      {
+        type: "link" as const,
+        href: "https://www.uscrpl.com/",
+        label: "USC Rocket Propulsion Laboratory",
+      },
+      { type: "text" as const, value: "; and running " },
+      {
+        type: "link" as const,
+        href: "https://engage.usc.edu/clubgolf/home/",
+        label: "USC Club Golf",
+      },
+      { type: "text" as const, value: " as VP." },
+    ],
   ],
-  upTo: [
-    "gtm at MindFort AI (YC X25) — 3rd hire, building outbound infra and hosting founder + CISO dinners in LA, SF, and NYC.",
-    "summer fellow on the Frontier Track at Dorm Room Fund.",
-    "head of growth & PM at TroyLabs — USC's startup accelerator. 1 of 3 PMs selected from 130 applicants; won Launch '25 ($1,500).",
-    "previously growth PM at Nara (healthcare AI) and PM at Revisent (sustainability / waste detection).",
-    "16k+ across Instagram, TikTok, and LinkedIn — still enjoy the manual work (video editing, especially).",
-  ],
-  thinkAbout: [
-    "why startups over corporate — you see the impact of your work directly. at a big company you're one link in a chain. at a startup you own the whole loop: ideation, shipping, distribution, customers, feedback, repeat.",
-    "how to connect technical growth with community building — curated founder dinners, USC entrepreneurship clubs, bringing the right people into the same room.",
-    "which companies are doing something technically hard with a lean team — and where distribution is still the bottleneck.",
-    "how AI agents change the gtm stack — outbound automation with Claude and n8n, but staying cautious about automating everything.",
-  ],
-  create: [
-    "content across four platforms — thought-led posts, founder dinner recaps, documenting life as a student operator.",
-    "media for USC Rocket Propulsion Laboratory — documenting the first student team to reach space (x3).",
-    "community events — MindFort Founder Dinners, USC Founders Table with five entrepreneurship clubs, Photon designer dinner with TroyLabs.",
-    "former competitive golfer (varsity captain, 2x club champion), TEDx speaker, nonprofit founder (Swing4Hope).",
-  ],
-  footer: "built by dara miao, 2026",
 } as const;
+
+export type WorkPart = (typeof site.paragraphs)[number][number];
