@@ -11,6 +11,13 @@ export const metadata: Metadata = {
   title: "Dara Miao",
   description:
     "Business and AI at USC Marshall. GTM at MindFort AI (YC X25).",
+  icons: {
+    icon: [
+      { url: "/favicon-light.png", media: "(prefers-color-scheme: light)" },
+      { url: "/favicon-dark.png", media: "(prefers-color-scheme: dark)" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
     title: "Dara Miao",
     description:

@@ -183,3 +183,26 @@ export const photoRevealStaggerMs = computePhotoRevealStaggerMs(
   site.photos,
   REVEAL_STAGGER_STEP_MS,
 );
+
+function computeCollageContentInsets(
+  photos: ReadonlyArray<{ layout: { x: number; w: number } }>,
+  canvasWidth: number,
+) {
+  let left = Infinity;
+  let right = 0;
+  for (const photo of photos) {
+    left = Math.min(left, photo.layout.x);
+    right = Math.max(right, photo.layout.x + photo.layout.w);
+  }
+  return {
+    left,
+    right,
+    rightInset: Math.max(0, canvasWidth - right),
+  };
+}
+
+/** Photo content bounds within the collage canvas (px). */
+export const collageContentInsets = computeCollageContentInsets(
+  site.photos,
+  collageCanvas.width,
+);

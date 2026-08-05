@@ -5,7 +5,12 @@ import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { EmailCopyLink } from "@/components/email-copy-link";
 import { RevealScrollOverlay } from "@/components/reveal-scroll-overlay";
-import { collageCanvas, photoRevealStaggerMs, site } from "@/content/site";
+import {
+  collageCanvas,
+  collageContentInsets,
+  photoRevealStaggerMs,
+  site,
+} from "@/content/site";
 
 export function RevealPhotoLayer() {
   const gridRef = useRef<HTMLDivElement>(null);
@@ -48,60 +53,63 @@ export function RevealPhotoLayer() {
       <RevealScrollOverlay />
       <div className="reveal-layer-inner">
         <div
-          ref={gridRef}
-          className="collage-grid"
+          className="reveal-collage-column"
           style={
             {
               "--collage-w": collageCanvas.width,
               "--collage-h": collageCanvas.height,
+              "--collage-content-left": collageContentInsets.left,
+              "--collage-content-right-inset": collageContentInsets.rightInset,
             } as CSSProperties
           }
         >
-          {site.photos.map((photo, index) => (
-            <div
-              key={photo.src}
-              className={`collage-cell group ${visiblePhotos.has(index) ? "collage-cell--visible" : ""}`}
-              style={
-                {
-                  "--layout-x": photo.layout.x,
-                  "--layout-y": photo.layout.y,
-                  "--layout-w": photo.layout.w,
-                  "--layout-h": photo.layout.h,
-                  "--stagger": `${photoRevealStaggerMs[index]}ms`,
-                } as CSSProperties
-              }
-            >
-              <Image
-                src={photo.src}
-                alt={photo.alt}
-                width={photo.width}
-                height={photo.height}
-                unoptimized
-                className="collage-image"
-                style={{ objectPosition: photo.objectPosition }}
-              />
-              <div className="collage-hover-overlay" aria-hidden />
-            </div>
-          ))}
-        </div>
-        <div className="reveal-footer-bar">
-          <p className="reveal-footer-copy">&copy; 2026 {site.name}</p>
-          <div className="reveal-footer-links">
-            {site.social.map(({ label, href }) => (
-              <a
-                key={label}
-                href={href}
-                className="reveal-footer-link"
-                target="_blank"
-                rel="noopener noreferrer"
+          <div ref={gridRef} className="collage-grid">
+            {site.photos.map((photo, index) => (
+              <div
+                key={photo.src}
+                className={`collage-cell group ${visiblePhotos.has(index) ? "collage-cell--visible" : ""}`}
+                style={
+                  {
+                    "--layout-x": photo.layout.x,
+                    "--layout-y": photo.layout.y,
+                    "--layout-w": photo.layout.w,
+                    "--layout-h": photo.layout.h,
+                    "--stagger": `${photoRevealStaggerMs[index]}ms`,
+                  } as CSSProperties
+                }
               >
-                {label}
-              </a>
+                <Image
+                  src={photo.src}
+                  alt={photo.alt}
+                  width={photo.width}
+                  height={photo.height}
+                  unoptimized
+                  className="collage-image"
+                  style={{ objectPosition: photo.objectPosition }}
+                />
+                <div className="collage-hover-overlay" aria-hidden />
+              </div>
             ))}
-            <EmailCopyLink
-              email={site.email}
-              className="reveal-footer-link email-copy-link"
-            />
+          </div>
+          <div className="reveal-footer-bar">
+            <p className="reveal-footer-copy">&copy; 2026 {site.name}</p>
+            <div className="reveal-footer-links">
+              {site.social.map(({ label, href }) => (
+                <a
+                  key={label}
+                  href={href}
+                  className="reveal-footer-link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {label}
+                </a>
+              ))}
+              <EmailCopyLink
+                email={site.email}
+                className="reveal-footer-link email-copy-link"
+              />
+            </div>
           </div>
         </div>
       </div>

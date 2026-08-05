@@ -1,4 +1,6 @@
 import Image from "next/image";
+import { AsciiBackground } from "@/components/ascii-background";
+import { AsciiCorner } from "@/components/ascii-corner";
 import { EmailCopyLink } from "@/components/email-copy-link";
 import { IntroSplash } from "@/components/intro-splash";
 import { RevealPhotoLayer } from "@/components/reveal-photo-layer";
@@ -10,6 +12,8 @@ export default function Home() {
     <>
       <IntroSplash>
         <div className="page-content">
+          <AsciiBackground />
+          <AsciiCorner />
           <main className="page-main">
             <div className="page-inner">
               <div className="mb-14">
