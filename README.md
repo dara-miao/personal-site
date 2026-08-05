@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# daramiao.com
 
-## Getting Started
+Personal site for [Dara Miao](https://daramiao.com). A minimal single-page hub: bio, inline links, and a scroll-reveal footer.
 
-First, run the development server:
+**Live:** [daramiao.com](https://daramiao.com)
+
+## Stack
+
+- [Next.js 16](https://nextjs.org) (App Router)
+- [React 19](https://react.dev)
+- [Tailwind CSS v4](https://tailwindcss.com)
+- [Geist Sans](https://vercel.com/font)
+
+## Local development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build   # production build
+npm run start   # serve production build
+npm run lint    # eslint
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Editing content
 
-## Learn More
+All copy and links live in one file:
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/content/site.ts
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Update `name`, `role`, `email`, `social`, and `paragraphs` there. The page renders those paragraphs with inline links via `WorkParagraph`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project layout
 
-## Deploy on Vercel
+```
+src/
+  app/
+    page.tsx          # page layout (hero, body, footer)
+    layout.tsx        # fonts, metadata
+    globals.css       # theme tokens and footer styles
+  components/
+    work-paragraph.tsx
+    email-copy-link.tsx
+    reveal-footer.tsx # scroll footer + canvas animation
+  content/
+    site.ts           # site copy (edit here)
+public/
+  headshot.png
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deployed on [Vercel](https://vercel.com). Connect the repo and point `daramiao.com` DNS to Vercel when ready.
