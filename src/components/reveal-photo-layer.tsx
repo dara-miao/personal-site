@@ -5,7 +5,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { EmailCopyLink } from "@/components/email-copy-link";
 import { RevealScrollOverlay } from "@/components/reveal-scroll-overlay";
-import { collageCanvas, site } from "@/content/site";
+import { collageCanvas, photoRevealStaggerMs, site } from "@/content/site";
 
 export function RevealPhotoLayer() {
   const gridRef = useRef<HTMLDivElement>(null);
@@ -67,7 +67,7 @@ export function RevealPhotoLayer() {
                   "--layout-y": photo.layout.y,
                   "--layout-w": photo.layout.w,
                   "--layout-h": photo.layout.h,
-                  "--stagger": `${(index % 4) * 100}ms`,
+                  "--stagger": `${photoRevealStaggerMs[index]}ms`,
                 } as CSSProperties
               }
             >

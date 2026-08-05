@@ -13,15 +13,15 @@ export default function Home() {
           <main className="page-main">
             <div className="page-inner">
               <div className="mb-14">
-                <div className="mb-6 h-[96px] w-[96px] overflow-hidden rounded-[14px] bg-[var(--color-bg-subtle)]">
+                <div className="mb-6 h-[108px] w-[90px] overflow-hidden rounded-[14px] bg-[var(--color-bg-subtle)]">
                   <Image
                     src="/headshot.png"
                     alt={site.name}
-                    width={384}
-                    height={384}
+                    width={790}
+                    height={894}
                     priority
                     unoptimized
-                    className="h-full w-full object-cover object-[center_20%]"
+                    className="h-full w-full object-cover object-[center_45%]"
                   />
                 </div>
                 <h1 className="m-0 text-[16px] font-medium leading-[2] tracking-[-0.3px] text-[#1a1a18]">

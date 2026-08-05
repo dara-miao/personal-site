@@ -149,3 +149,37 @@ export const site = {
 } as const;
 
 export type WorkPart = (typeof site.paragraphs)[number][number];
+
+const REVEAL_ROW_TOP = 100;
+const REVEAL_ROW_MIDDLE = 450;
+const REVEAL_STAGGER_STEP_MS = 70;
+
+function getPhotoRevealRow(y: number): number {
+  if (y < REVEAL_ROW_TOP) return 0;
+  if (y < REVEAL_ROW_MIDDLE) return 1;
+  return 2;
+}
+
+function computePhotoRevealStaggerMs(
+  photos: ReadonlyArray<{ layout: { x: number; y: number } }>,
+  stepMs: number,
+): readonly number[] {
+  const indexed = photos.map((photo, index) => ({ index, layout: photo.layout }));
+  const sorted = [...indexed].sort((a, b) => {
+    const rowDiff = getPhotoRevealRow(b.layout.y) - getPhotoRevealRow(a.layout.y);
+    if (rowDiff !== 0) return rowDiff;
+    return a.layout.x - b.layout.x;
+  });
+
+  const delays = new Array<number>(photos.length);
+  sorted.forEach(({ index }, order) => {
+    delays[index] = order * stepMs;
+  });
+  return delays;
+}
+
+/** Stagger delay (ms) per photo index, ordered bottom→top then left→right. */
+export const photoRevealStaggerMs = computePhotoRevealStaggerMs(
+  site.photos,
+  REVEAL_STAGGER_STEP_MS,
+);
