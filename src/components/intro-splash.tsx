@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { site } from "@/content/site";
 import { TypewriterText } from "@/components/typewriter-text";
+import { IntroRevealProvider } from "@/components/intro-reveal-context";
+import {
+  INTRO_TYPEWRITER_CHAR_DELAY_MS,
+  INTRO_TYPEWRITER_START_DELAY_MS,
+  getIntroSplashExitMs,
+} from "@/lib/intro-timing";
 
 type IntroSplashProps = {
   children: React.ReactNode;
@@ -23,9 +29,7 @@ export function IntroSplash({ children }: IntroSplashProps) {
       return;
     }
 
-    const nameLength = site.name.length;
-    const typingMs = 400 + nameLength * 70;
-    const exitAt = Math.max(typingMs + 300, 1600);
+    const exitAt = getIntroSplashExitMs();
 
     const revealTimer = window.setTimeout(() => {
       setShowSplash(false);
@@ -42,15 +46,21 @@ export function IntroSplash({ children }: IntroSplashProps) {
         aria-hidden={!showSplash}
       >
         <h1 className="intro-splash-title">
-          <TypewriterText text={site.name} charDelay={80} startDelay={500} />
+          <TypewriterText
+            text={site.name}
+            charDelay={INTRO_TYPEWRITER_CHAR_DELAY_MS}
+            startDelay={INTRO_TYPEWRITER_START_DELAY_MS}
+          />
         </h1>
       </div>
 
-      <div
-        className={`intro-content ${revealContent ? "intro-content--visible" : ""}`}
-      >
-        {children}
-      </div>
+      <IntroRevealProvider revealed={revealContent}>
+        <div
+          className={`intro-content ${revealContent ? "intro-content--visible" : ""}`}
+        >
+          {children}
+        </div>
+      </IntroRevealProvider>
     </>
   );
 }
