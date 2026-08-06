@@ -16,6 +16,7 @@ export const site = {
     {
       src: "/photos/ted-talk.png",
       alt: "Speaking on the TED stage",
+      caption: "TED Talk · \u2018How Athletics Fuel Academic Success\u2019",
       width: 800,
       height: 1024,
       layout: { x: 24, y: 23, w: 229, h: 279 },
@@ -24,6 +25,7 @@ export const site = {
     {
       src: "/photos/golf-swing.png",
       alt: "Golf swing on the course",
+      caption: "Varsity Golf Captain · 2x club champion",
       width: 1024,
       height: 682,
       layout: { x: 274, y: 23, w: 338, h: 224 },
@@ -32,6 +34,7 @@ export const site = {
     {
       src: "/photos/founders-dinner.png",
       alt: "USC Founders Table dinner",
+      caption: "\u2018The Founders Table\u2019 · Curated dinner series",
       width: 1024,
       height: 621,
       layout: { x: 634, y: 22, w: 368, h: 225 },
@@ -40,6 +43,7 @@ export const site = {
     {
       src: "/photos/troylabs-checks.png",
       alt: "TroyLabs Launch winner checks",
+      caption: "TroyLabs Launch · 1st place, $1,500",
       width: 1024,
       height: 819,
       layout: { x: 387, y: 263, w: 293, h: 234 },
@@ -48,6 +52,7 @@ export const site = {
     {
       src: "/photos/rocket-frame-outdoors.png",
       alt: "Working on a rocket frame outdoors",
+      caption: "RPL Media Team · Stabilizing GoPro on tower",
       width: 1024,
       height: 767,
       layout: { x: 699, y: 264, w: 304, h: 234 },
@@ -56,6 +61,7 @@ export const site = {
     {
       src: "/photos/hiking-group.png",
       alt: "Hiking with friends in the mountains",
+      caption: "Waterfall hike with friends",
       width: 1024,
       height: 768,
       layout: { x: 24, y: 320, w: 343, h: 224 },
@@ -64,6 +70,8 @@ export const site = {
     {
       src: "/photos/rocket-launch.png",
       alt: "Rocket launch at the desert range",
+      caption: "RPL launch · 3rd rocket to space, NASA payloads",
+      captionPosition: "top",
       width: 1024,
       height: 576,
       layout: { x: 531, y: 512, w: 471, h: 238 },
@@ -72,6 +80,7 @@ export const site = {
     {
       src: "/photos/launch-check-flowers.png",
       alt: "Launch check presentation with flowers",
+      caption: "AI hackathon (a16z) · 1st place, $2,000",
       width: 1024,
       height: 819,
       layout: { x: 24, y: 561, w: 281, h: 190 },
@@ -80,6 +89,7 @@ export const site = {
     {
       src: "/photos/agt-audience.png",
       alt: "In the America's Got Talent audience",
+      caption: "America\u2019s Got Talent · Invited to the audience",
       width: 768,
       height: 1024,
       layout: { x: 324, y: 561, w: 188, h: 190 },
@@ -103,12 +113,13 @@ export const site = {
     [
       {
         type: "text" as const,
-        value: "During the school year, I am a product manager at ",
+        value: "During the school year, I am a Product Manager at ",
       },
       { type: "link" as const, href: "https://troylabs.vc/", label: "TroyLabs" },
       {
         type: "text" as const,
-        value: ", USC's startup accelerator, where I PM'd for portcos like ",
+        value:
+          ", USC's startup accelerator, where I PM'd for portfolio companies like ",
       },
       { type: "link" as const, href: "https://www.withnara.com/", label: "Nara" },
       { type: "text" as const, value: " and " },
@@ -121,7 +132,7 @@ export const site = {
       },
       {
         type: "text" as const,
-        value: " and driving 3 pilot deployments and a 35% accuracy improvement.",
+        value: " by building new features to improve accuracy by 35%.",
       },
     ],
     [

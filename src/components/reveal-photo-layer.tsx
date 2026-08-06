@@ -14,6 +14,25 @@ import {
   site,
 } from "@/content/site";
 
+function CollageHoverCaption({ caption }: { caption: string }) {
+  const separator = " · ";
+  const splitIndex = caption.indexOf(separator);
+
+  if (splitIndex === -1) {
+    return <p className="collage-hover-caption">{caption}</p>;
+  }
+
+  const primary = caption.slice(0, splitIndex);
+  const secondary = caption.slice(splitIndex + separator.length);
+
+  return (
+    <p className="collage-hover-caption">
+      <span className="collage-hover-caption-primary">{primary}</span>
+      <span className="collage-hover-caption-secondary">{secondary}</span>
+    </p>
+  );
+}
+
 export function RevealPhotoLayer() {
   const layerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -93,7 +112,12 @@ export function RevealPhotoLayer() {
                   className="collage-image"
                   style={{ objectPosition: photo.objectPosition }}
                 />
-                <div className="collage-hover-overlay" aria-hidden />
+                <div
+                  className={`collage-hover-overlay${"captionPosition" in photo && photo.captionPosition === "top" ? " collage-hover-overlay--top" : ""}`}
+                  aria-hidden
+                >
+                  <CollageHoverCaption caption={photo.caption} />
+                </div>
               </div>
             ))}
           </div>

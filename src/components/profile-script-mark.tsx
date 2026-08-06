@@ -1,26 +1,8 @@
-"use client";
-
 import Image from "next/image";
-import { useState } from "react";
-import {
-  cycleScriptTint,
-  PROFILE_SCRIPT_TINTS,
-  type ScriptTint,
-} from "@/lib/script-tint";
 
 export function ProfileScriptMark() {
-  const [tint, setTint] = useState<ScriptTint>("default");
-
   return (
-    <button
-      type="button"
-      className="profile-script-mark"
-      data-tint={tint}
-      onClick={() =>
-        setTint((t) => cycleScriptTint(t, PROFILE_SCRIPT_TINTS))
-      }
-      aria-label="Cycle name script color"
-    >
+    <div className="profile-script-mark" aria-hidden>
       <Image
         src="/dara-miao-script.png"
         alt=""
@@ -32,6 +14,6 @@ export function ProfileScriptMark() {
         aria-hidden
         draggable={false}
       />
-    </button>
+    </div>
   );
 }
