@@ -4,7 +4,7 @@ import Image from "next/image";
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { AsciiBackground } from "@/components/ascii-background";
-import { EmailCopyLink } from "@/components/email-copy-link";
+import { usePhotoCurtainLift } from "@/hooks/use-photo-curtain-lift";
 import { useRevealOmbreAmbient } from "@/components/reveal-ombre-ambient";
 import { RevealScrollOverlay } from "@/components/reveal-scroll-overlay";
 import {
@@ -39,6 +39,7 @@ export function RevealPhotoLayer() {
   const [visiblePhotos, setVisiblePhotos] = useState<Set<number>>(new Set());
 
   useRevealOmbreAmbient(layerRef);
+  usePhotoCurtainLift(layerRef);
 
   useEffect(() => {
     const grid = gridRef.current;
@@ -123,23 +124,6 @@ export function RevealPhotoLayer() {
           </div>
           <div className="reveal-footer-bar">
             <p className="reveal-footer-copy">&copy; 2026 {site.name}</p>
-            <div className="reveal-footer-links">
-              {site.social.map(({ label, href }) => (
-                <a
-                  key={label}
-                  href={href}
-                  className="reveal-footer-link"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {label}
-                </a>
-              ))}
-              <EmailCopyLink
-                email={site.email}
-                className="reveal-footer-link email-copy-link"
-              />
-            </div>
           </div>
         </div>
       </div>

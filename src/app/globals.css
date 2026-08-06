@@ -441,6 +441,13 @@ body {
   pointer-events: none;
 }
 
+/* Extra scroll room for the photo curtain lift into the DM chapter */
+.dm-scroll-spacer {
+  height: 200svh;
+  height: 200dvh;
+  pointer-events: none;
+}
+
 /* Fixed photo layer revealed on scroll */
 .reveal-layer {
   position: fixed;
@@ -510,6 +517,13 @@ body {
         62%,
       color-mix(in srgb, var(--ascii-ombre-end) 20%, var(--reveal-bg)) 100%
     );
+}
+
+.reveal-layer--lifting {
+  box-shadow:
+    0 -8px 32px #00000014,
+    0 16px 48px #0000001f,
+    0 4px 12px #0000000f;
 }
 
 /*
@@ -813,6 +827,11 @@ body {
     color: var(--reveal-footer-hover);
   }
 
+  .dm-layer-footer-link:hover,
+  .dm-layer-footer-link.email-copy-link:hover {
+    color: var(--reveal-footer-hover);
+  }
+
   .social-link:hover {
     color: #1a1a18;
   }
@@ -903,6 +922,176 @@ body {
     justify-content: center;
     gap: 16px;
   }
+
+  .dm-layer-footer {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 28px;
+    text-align: center;
+  }
+
+  .dm-layer-footer-links {
+    justify-content: center;
+    gap: 16px;
+  }
+}
+
+/* ── DM chapter — fixed beneath photo curtain ── */
+.dm-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-color: var(--color-bg);
+  isolation: isolate;
+  transition: background-color 900ms ease;
+  /* Darker glyph ink than bio/reveal — DM-only */
+  --ascii-color: #0e0e0c;
+}
+
+/* DM per-tint page wash + ASCII ombre vars (bio/reveal untouched).
+   Ombre start must NOT match the page wash — light-on-light kills glyphs. */
+.dm-layer[data-tint="default"] {
+  background-color: var(--color-bg);
+  --ascii-opacity: 0.24;
+  --ascii-color: #0a0a09;
+  --ascii-ombre-start: #6e6d68;
+  --ascii-ombre-end: #3d3a34;
+  --ascii-ombre-accent: #8a8070;
+  --ascii-ombre-accent-mix: 0.16;
+}
+
+.dm-layer[data-tint="gold"] {
+  background-color: #e8e4dc;
+  --ascii-opacity: 0.24;
+  --ascii-color: #1a1208;
+  --ascii-ombre-start: #8a7040;
+  --ascii-ombre-end: #a86e1e;
+  --ascii-ombre-accent: #c4882e;
+  --ascii-ombre-accent-mix: 0.28;
+}
+
+.dm-layer[data-tint="blue"] {
+  background-color: #e4eaf0;
+  --ascii-opacity: 0.28;
+  --ascii-color: #0a1420;
+  --ascii-ombre-start: #4a6a88;
+  --ascii-ombre-end: #2a5578;
+  --ascii-ombre-accent: #3d6f9c;
+  --ascii-ombre-accent-mix: 0.2;
+}
+
+.dm-layer-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  padding: 40px 24px 0;
+}
+
+.dm-mark-area {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.dm-mark {
+  position: relative;
+  width: clamp(110px, 16vw, 180px);
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  overflow: hidden;
+  transition: transform 900ms ease;
+}
+
+@media (hover: hover) {
+  .dm-mark:hover {
+    transform: scale(1.02);
+  }
+}
+
+.dm-mark__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  transition: opacity 900ms ease;
+}
+
+.dm-layer[data-tint="default"] .dm-mark__image {
+  opacity: 1;
+}
+
+.dm-layer:not([data-tint="default"]) .dm-mark__image {
+  opacity: 0;
+}
+
+.dm-mark::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 900ms ease;
+  -webkit-mask-image: url("/dm-corner.png");
+  mask-image: url("/dm-corner.png");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+.dm-layer[data-tint="gold"] .dm-mark::before {
+  opacity: 0.88;
+  background: #c4882e;
+}
+
+.dm-layer[data-tint="blue"] .dm-mark::before {
+  opacity: 0.88;
+  background: #4b89c0;
+}
+
+.dm-layer-footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-top: 20px;
+  padding-bottom: 36px;
+}
+
+.dm-layer-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.dm-layer-footer-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.3px;
+  color: var(--reveal-footer-secondary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.dm-layer-footer-copy {
+  margin: 0;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--reveal-footer-secondary);
 }
 
 @media (max-width: 520px) {

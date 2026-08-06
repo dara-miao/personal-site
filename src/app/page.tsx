@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import Image from "next/image";
 import { AsciiBackground } from "@/components/ascii-background";
-import { AsciiCorner } from "@/components/ascii-corner";
+import { DmLayer } from "@/components/dm-chapter";
 import { EmailCopyLink } from "@/components/email-copy-link";
 import { IntroSplash } from "@/components/intro-splash";
 import { ProfileScriptMark } from "@/components/profile-script-mark";
@@ -15,7 +15,6 @@ export default function Home() {
       <IntroSplash>
         <div className="page-content">
           <AsciiBackground />
-          <AsciiCorner />
           <main className="page-main">
             <div className="page-inner">
               <div className="profile-card">
@@ -75,6 +74,10 @@ export default function Home() {
       <div className="reveal-scroll-spacer" aria-hidden />
 
       <RevealPhotoLayer />
+
+      <DmLayer />
+
+      <div className="dm-scroll-spacer" aria-hidden />
     </>
   );
 }

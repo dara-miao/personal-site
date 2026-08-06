@@ -6,12 +6,23 @@ import { createNoise3D } from "simplex-noise";
 /**
  * Density ramp — sparse to flowing (warm minimal, not matrix).
  * Leading spaces keep the cream page visible between bands.
+ * Bio + reveal always use these; DM tint sets may diverge below.
  */
 const GLYPHS = [" ", " ", " ", "·", ".", "∘", "─", "~", "≈", "∿"] as const;
 const STAR_GLYPHS = ["'", "+", "*"] as const;
 /** Field values below this render as empty — raises bar for visible glyphs */
 const DENSITY_FLOOR = 0.4;
 const PEAK_THRESHOLD = 0.97;
+
+/** DM gold — warmer denser field (fewer blanks, more mid/warm glyphs) */
+const DM_GOLD_GLYPHS = [" ", " ", "·", ".", "∘", "·", "~", "≈", "∿", "✦"] as const;
+const DM_GOLD_STARS = ["+", "*", "✧"] as const;
+const DM_GOLD_DENSITY_FLOOR = 0.32;
+
+/** DM blue — cooler airy field (circular glyphs); denser than before for light-blue bg */
+const DM_BLUE_GLYPHS = [" ", " ", " ", "·", "˚", ".", "∘", "○", "~", "∿"] as const;
+const DM_BLUE_STARS = ["'", "˚", "∘"] as const;
+const DM_BLUE_DENSITY_FLOOR = 0.38;
 
 const CELL_PX = 13;
 const BASE_ALPHA = 0.11;
@@ -74,7 +85,7 @@ function lerpColor(from: Rgb, to: Rgb, t: number): Rgb {
   };
 }
 
-function readOmbrePalette(): {
+function readOmbrePalette(el: Element = document.documentElement): {
   base: Rgb;
   accent: Rgb;
   ombreAccent: Rgb;
@@ -82,7 +93,7 @@ function readOmbrePalette(): {
   start: Rgb;
   end: Rgb;
 } {
-  const style = getComputedStyle(document.documentElement);
+  const style = getComputedStyle(el);
   const accentMixRaw = parseFloat(
     style.getPropertyValue("--ascii-ombre-accent-mix").trim(),
   );
@@ -103,6 +114,35 @@ function readOmbrePalette(): {
     end: parseHexColor(
       style.getPropertyValue("--ascii-ombre-end").trim() || "#d4a574",
     ),
+  };
+}
+
+type GlyphSet = readonly string[];
+
+/** DM-layer-only field style — bio/reveal never call this */
+function dmTintFieldStyle(tint: string): {
+  densityFloor: number;
+  glyphs: GlyphSet;
+  stars: GlyphSet;
+} {
+  if (tint === "gold") {
+    return {
+      densityFloor: DM_GOLD_DENSITY_FLOOR,
+      glyphs: DM_GOLD_GLYPHS,
+      stars: DM_GOLD_STARS,
+    };
+  }
+  if (tint === "blue") {
+    return {
+      densityFloor: DM_BLUE_DENSITY_FLOOR,
+      glyphs: DM_BLUE_GLYPHS,
+      stars: DM_BLUE_STARS,
+    };
+  }
+  return {
+    densityFloor: DENSITY_FLOOR,
+    glyphs: GLYPHS,
+    stars: STAR_GLYPHS,
   };
 }
 
@@ -195,20 +235,25 @@ function effectiveField(field: number, densityFloor = DENSITY_FLOOR): number {
   return clamp01((field - densityFloor) / (1 - densityFloor));
 }
 
-function glyphIndex(field: number): number {
-  const idx = Math.floor(clamp01(field) * GLYPHS.length);
-  return Math.min(idx, GLYPHS.length - 1);
+function glyphIndex(field: number, glyphs: GlyphSet = GLYPHS): number {
+  const idx = Math.floor(clamp01(field) * glyphs.length);
+  return Math.min(idx, glyphs.length - 1);
 }
 
-function pickGlyph(field: number, densityFloor = DENSITY_FLOOR): string {
+function pickGlyph(
+  field: number,
+  densityFloor = DENSITY_FLOOR,
+  glyphs: GlyphSet = GLYPHS,
+  stars: GlyphSet = STAR_GLYPHS,
+): string {
   if (field >= PEAK_THRESHOLD) {
     const t = (field - PEAK_THRESHOLD) / (1 - PEAK_THRESHOLD);
-    const idx = Math.floor(t * STAR_GLYPHS.length);
-    return STAR_GLYPHS[Math.min(idx, STAR_GLYPHS.length - 1)]!;
+    const idx = Math.floor(t * stars.length);
+    return stars[Math.min(idx, stars.length - 1)]!;
   }
   const remapped = effectiveField(field, densityFloor);
   if (remapped === 0) return " ";
-  return GLYPHS[glyphIndex(remapped)]!;
+  return glyphs[glyphIndex(remapped, glyphs)]!;
 }
 
 /** How much a cell is actively drifting — temporal field change + flow swing + density */
@@ -242,6 +287,9 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
     const canvas = canvasRef.current;
     if (!root || !canvas) return;
 
+    const dmLayerEl = root.closest(".dm-layer");
+    const isDm = !!dmLayerEl;
+
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
@@ -251,16 +299,41 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
       "(prefers-reduced-motion: reduce)",
     ).matches;
 
-    const style = getComputedStyle(document.documentElement);
     const opacityVar = isReveal ? "--ascii-reveal-opacity" : "--ascii-opacity";
-    const opacityScale =
-      parseFloat(style.getPropertyValue(opacityVar)) ||
-      (isReveal ? 0.11 : 0.11);
-    const densityFloor = DENSITY_FLOOR;
-    const baseAlpha = BASE_ALPHA * (opacityScale / 0.15) * ALPHA_SCALE;
-    const cursorBoost = isReveal ? 0 : CURSOR_BOOST * (opacityScale / 0.15);
-    const maxAlpha = 0.11 * (opacityScale / 0.15) * ALPHA_SCALE;
-    const palette = readOmbrePalette();
+    const rootStyle = getComputedStyle(document.documentElement);
+    const rootOpacityScale =
+      parseFloat(rootStyle.getPropertyValue(opacityVar)) || 0.11;
+    const cursorBoost =
+      isReveal || isDm ? 0 : CURSOR_BOOST * (rootOpacityScale / 0.15);
+    // Bio/reveal: fixed :root palette + density (never tint-aware)
+    let palette = readOmbrePalette();
+    let densityFloor = DENSITY_FLOOR;
+    let glyphs: GlyphSet = GLYPHS;
+    let stars: GlyphSet = STAR_GLYPHS;
+    let baseAlpha = BASE_ALPHA * (rootOpacityScale / 0.15) * ALPHA_SCALE;
+    let maxAlpha = 0.11 * (rootOpacityScale / 0.15) * ALPHA_SCALE;
+
+    /** DM only — re-read tint CSS vars + glyph/density when data-tint changes */
+    let lastDmTint = "";
+    const syncDmTintStyle = () => {
+      if (!isDm || !dmLayerEl) return;
+
+      const dmTint = dmLayerEl.getAttribute("data-tint") ?? "default";
+      if (dmTint === lastDmTint) return;
+      lastDmTint = dmTint;
+
+      const field = dmTintFieldStyle(dmTint);
+      densityFloor = field.densityFloor;
+      glyphs = field.glyphs;
+      stars = field.stars;
+      palette = readOmbrePalette(dmLayerEl);
+
+      const style = getComputedStyle(dmLayerEl);
+      const opacityScale =
+        parseFloat(style.getPropertyValue("--ascii-opacity")) || 0.11;
+      baseAlpha = BASE_ALPHA * (opacityScale / 0.15) * ALPHA_SCALE;
+      maxAlpha = 0.11 * (opacityScale / 0.15) * ALPHA_SCALE;
+    };
 
     let width = 0;
     let height = 0;
@@ -325,6 +398,8 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
 
     /** Static dot grid for prefers-reduced-motion — no frozen aurora frame */
     const drawStaticPattern = () => {
+      syncDmTintStyle();
+
       ctx.clearRect(0, 0, width, height);
       ctx.font = `${CELL_PX}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
       ctx.textAlign = "center";
@@ -334,7 +409,14 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
       const rows = Math.ceil(height / CELL_PX) + 1;
       const cx = width * 0.5;
       const cy = height * 0.35;
-      const staticStride = 5;
+      // Gold denser stride / blue airier — DM only
+      const staticStride = isDm
+        ? densityFloor < 0.36
+          ? 4
+          : densityFloor > 0.45
+            ? 6
+            : 5
+        : 5;
 
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
@@ -366,12 +448,14 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
           );
 
           ctx.fillStyle = `rgba(${rgb}, ${alpha})`;
-          ctx.fillText("·", baseX, baseY);
+          ctx.fillText(isDm && densityFloor > 0.45 ? "˚" : "·", baseX, baseY);
         }
       }
     };
 
     const draw = () => {
+      syncDmTintStyle();
+
       ctx.clearRect(0, 0, width, height);
       ctx.font = `${CELL_PX}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
       ctx.textAlign = "center";
@@ -388,7 +472,7 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
           const baseY = row * CELL_PX + CELL_PX * 0.5;
 
           const field = auroraField(col, row, time);
-          const glyph = pickGlyph(field, densityFloor);
+          const glyph = pickGlyph(field, densityFloor, glyphs, stars);
           if (glyph === " ") continue;
 
           const flow = flowOffset(col, row, time);
@@ -400,7 +484,7 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
           let dy = flow.dy;
           let boost = 0;
 
-          if (!isReveal && pointer.inside) {
+          if (!isReveal && !isDm && pointer.inside) {
             const px = baseX - pointer.x;
             const py = baseY - pointer.y;
             const dist = Math.hypot(px, py);
@@ -501,7 +585,7 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
     });
     ro.observe(root);
 
-    if (!isReveal) {
+    if (!isReveal && !isDm) {
       window.addEventListener("pointermove", onPointerMove, { passive: true });
       window.addEventListener("pointerleave", onPointerLeave);
     }
@@ -511,7 +595,7 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
-      if (!isReveal) {
+      if (!isReveal && !isDm) {
         window.removeEventListener("pointermove", onPointerMove);
         window.removeEventListener("pointerleave", onPointerLeave);
       }

@@ -14,6 +14,58 @@ type IntroSplashProps = {
   children: React.ReactNode;
 };
 
+const SCROLL_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  " ",
+  "Spacebar",
+]);
+
+function lockDocumentScroll(): () => void {
+  const html = document.documentElement;
+  const body = document.body;
+  const prevHtmlOverflow = html.style.overflow;
+  const prevBodyOverflow = body.style.overflow;
+
+  html.style.overflow = "hidden";
+  body.style.overflow = "hidden";
+  window.scrollTo(0, 0);
+
+  const preventDefault = (event: Event) => {
+    event.preventDefault();
+  };
+
+  const preventKeyScroll = (event: KeyboardEvent) => {
+    if (SCROLL_KEYS.has(event.key)) {
+      event.preventDefault();
+    }
+  };
+
+  const forceTop = () => {
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+      window.scrollTo(0, 0);
+    }
+  };
+
+  window.addEventListener("wheel", preventDefault, { passive: false });
+  window.addEventListener("touchmove", preventDefault, { passive: false });
+  window.addEventListener("keydown", preventKeyScroll);
+  window.addEventListener("scroll", forceTop, { passive: true });
+
+  return () => {
+    html.style.overflow = prevHtmlOverflow;
+    body.style.overflow = prevBodyOverflow;
+    window.removeEventListener("wheel", preventDefault);
+    window.removeEventListener("touchmove", preventDefault);
+    window.removeEventListener("keydown", preventKeyScroll);
+    window.removeEventListener("scroll", forceTop);
+  };
+}
+
 export function IntroSplash({ children }: IntroSplashProps) {
   const [showSplash, setShowSplash] = useState(true);
   const [revealContent, setRevealContent] = useState(false);
@@ -29,14 +81,19 @@ export function IntroSplash({ children }: IntroSplashProps) {
       return;
     }
 
+    const unlock = lockDocumentScroll();
     const exitAt = getIntroSplashExitMs();
 
     const revealTimer = window.setTimeout(() => {
+      unlock();
       setShowSplash(false);
       setRevealContent(true);
     }, exitAt);
 
-    return () => window.clearTimeout(revealTimer);
+    return () => {
+      window.clearTimeout(revealTimer);
+      unlock();
+    };
   }, []);
 
   return (
