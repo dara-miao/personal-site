@@ -3,6 +3,7 @@
 import Image from "next/image";
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
+import { AsciiBackground } from "@/components/ascii-background";
 import { EmailCopyLink } from "@/components/email-copy-link";
 import { useRevealOmbreAmbient } from "@/components/reveal-ombre-ambient";
 import { RevealScrollOverlay } from "@/components/reveal-scroll-overlay";
@@ -54,6 +55,7 @@ export function RevealPhotoLayer() {
 
   return (
     <div ref={layerRef} className="reveal-layer">
+      <AsciiBackground variant="reveal" />
       <RevealScrollOverlay />
       <div className="reveal-layer-inner">
         <div

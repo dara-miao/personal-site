@@ -14,13 +14,14 @@
   --reveal-bg: var(--color-bg);
   --reveal-footer-secondary: #6e6d68;
   --reveal-footer-hover: #1a1a18;
-  --ascii-opacity: 0.18;
+  --ascii-opacity: 0.11;
+  --ascii-reveal-opacity: 0.11;
   --ascii-color: #1a1a18;
   --ascii-ombre-start: #fdfdfb;
   --ascii-ombre-end: #d4a574;
-  /* Cornflower/sky blue echo of headshot shirt (#4b89c0) — set mix to 0 to disable */
-  --ascii-ombre-accent: #4b89c0;
-  --ascii-ombre-accent-mix: 0.45;
+  /* Warm stone mid-tone — cream/gold ombre only, no shirt-blue */
+  --ascii-ombre-accent: #c4b5a0;
+  --ascii-ombre-accent-mix: 0.12;
   --ascii-corner-opacity: 0.52;
 }
 
@@ -127,25 +128,27 @@ body {
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  /* Soft edge vignette — visible in center, gentle fade at outer edges */
-  -webkit-mask-image: radial-gradient(
-    ellipse 90% 80% at 50% 40%,
-    black 40%,
-    rgb(0 0 0 / 70%) 75%,
-    transparent 100%
-  );
-  mask-image: radial-gradient(
-    ellipse 90% 80% at 50% 40%,
-    black 40%,
-    rgb(0 0 0 / 70%) 75%,
-    transparent 100%
-  );
 }
 
 .ascii-background__canvas {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* Photo reveal — gutters/margins only (cells block faces); sparser than bio */
+.ascii-background--reveal {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ascii-background--reveal {
+    opacity: 0.82;
+  }
 }
 
 .ascii-corner {
@@ -186,7 +189,7 @@ body {
     ) 44%,
     color-mix(
       in srgb,
-      var(--ascii-ombre-accent) calc(48% + var(--ascii-corner-bloom) * 58%),
+      var(--ascii-ombre-end) calc(28% + var(--ascii-corner-bloom) * 32%),
       transparent
     ) 100%
   );
@@ -233,9 +236,8 @@ body {
   height: 100svh;
   height: 100dvh;
   --collage-gutter: 5px;
-  --reveal-ombre-accent-strength: 0.38;
-  --reveal-ombre-warm-strength: 0.32;
-  --reveal-ombre-cream-strength: 0.26;
+  --reveal-ombre-warm-strength: 0.34;
+  --reveal-ombre-cream-strength: 0.28;
   --reveal-ombre-pulse: 0.88;
   --reveal-drift-1-x: 0%;
   --reveal-drift-1-y: 0%;
@@ -254,8 +256,8 @@ body {
         calc(10% + var(--reveal-drift-1-y)),
       color-mix(
         in srgb,
-        var(--ascii-ombre-accent)
-          calc(var(--reveal-ombre-accent-strength) * 100%),
+        var(--ascii-ombre-start)
+          calc(var(--reveal-ombre-cream-strength) * 100%),
         var(--reveal-bg)
       ),
       var(--reveal-bg) 62%
@@ -288,7 +290,7 @@ body {
       var(--reveal-bg) 38%,
       color-mix(
           in srgb,
-          var(--ascii-ombre-accent) calc(16% + var(--ascii-ombre-accent-mix) * 14%),
+          var(--ascii-ombre-end) calc(10% + var(--ascii-ombre-accent-mix) * 8%),
           var(--reveal-bg)
         )
         62%,
@@ -311,7 +313,7 @@ body {
     radial-gradient(
       ellipse 115% 80% at calc(18% + var(--reveal-drift-1-x))
         calc(12% + var(--reveal-drift-1-y)),
-      color-mix(in srgb, var(--ascii-ombre-accent) 34%, transparent),
+      color-mix(in srgb, var(--ascii-ombre-start) 18%, transparent),
       transparent 62%
     ),
     radial-gradient(
@@ -329,14 +331,14 @@ body {
     radial-gradient(
       ellipse 88% 60% at calc(65% + var(--reveal-drift-4-x))
         calc(28% + var(--reveal-drift-4-y)),
-      color-mix(in srgb, var(--ascii-ombre-accent) 20%, transparent),
+      color-mix(in srgb, var(--ascii-ombre-end) 14%, transparent),
       transparent 52%
     ),
     linear-gradient(
       var(--reveal-drift-angle),
       color-mix(in srgb, var(--ascii-ombre-end) 12%, transparent) 0%,
       transparent 30%,
-      color-mix(in srgb, var(--ascii-ombre-accent) 16%, transparent) 55%,
+      color-mix(in srgb, var(--ascii-ombre-end) 10%, transparent) 55%,
       transparent 72%,
       color-mix(in srgb, var(--ascii-ombre-end) 14%, transparent) 100%
     );

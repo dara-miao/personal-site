@@ -10,16 +10,18 @@ import { createNoise3D } from "simplex-noise";
 const GLYPHS = [" ", " ", " ", "·", ".", "∘", "─", "~", "≈", "∿"] as const;
 const STAR_GLYPHS = ["'", "+", "*"] as const;
 /** Field values below this render as empty — raises bar for visible glyphs */
-const DENSITY_FLOOR = 0.28;
+const DENSITY_FLOOR = 0.4;
 const PEAK_THRESHOLD = 0.97;
 
 const CELL_PX = 13;
 const BASE_ALPHA = 0.11;
+const ALPHA_SCALE = 0.72;
 /** Fraction of viewport width for bio text legibility fade */
 const TEXT_ZONE_RADIUS = 0.34;
 const CURSOR_RADIUS = 130;
-const CURSOR_BOOST = 0.07;
-const CURSOR_PUSH = 10;
+/** Faint cursor nudge on bio only — displacement, no color bloom */
+const CURSOR_BOOST = 0.025;
+const CURSOR_PUSH = 4;
 const FLOW_STRENGTH = 2.8;
 const SCROLL_DRIFT = 0.012;
 
@@ -27,14 +29,14 @@ type Rgb = { r: number; g: number; b: number };
 
 const OMBRE_VERTICAL_START = 0.22;
 const OMBRE_VERTICAL_END = 0.38;
-const OMBRE_VERTICAL_ACCENT = 0.38;
+const OMBRE_VERTICAL_ACCENT = 0.28;
 const OMBRE_HOVER_BLOOM = 0.4;
-const OMBRE_HOVER_ACCENT = 0.48;
+const OMBRE_HOVER_ACCENT = 0.32;
 const OMBRE_MID_BELL_WIDTH = 0.075;
 const OMBRE_PEAK_ACCENT = 0.45;
 /** Boost ombre wash on self-drifting aurora bands (temporal + flow activity) */
-const OMBRE_MOTION_TINT = 0.62;
-const OMBRE_MOTION_ACCENT = 0.48;
+const OMBRE_MOTION_TINT = 0.2;
+const OMBRE_MOTION_ACCENT = 0.08;
 const MOTION_SAMPLE_MS = 32;
 const MOTION_FIELD_SCALE = 11;
 const MOTION_FLOW_SCALE = 2.4;
@@ -92,9 +94,9 @@ function readOmbrePalette(): {
       style.getPropertyValue("--color-text-secondary").trim() || "#6e6d68",
     ),
     ombreAccent: parseHexColor(
-      style.getPropertyValue("--ascii-ombre-accent").trim() || "#5a9fd4",
+      style.getPropertyValue("--ascii-ombre-accent").trim() || "#c4b5a0",
     ),
-    accentMix: Number.isFinite(accentMixRaw) ? accentMixRaw : 0.45,
+    accentMix: Number.isFinite(accentMixRaw) ? accentMixRaw : 0.12,
     start: parseHexColor(
       style.getPropertyValue("--ascii-ombre-start").trim() || "#fdfdfb",
     ),
@@ -150,14 +152,14 @@ function glyphRgb(
         verticalT < 0.42
           ? lerpColor(
               palette.start,
-              palette.ombreAccent,
-              0.38 + accentMix * OMBRE_HOVER_ACCENT,
+              palette.end,
+              0.32 + accentMix * OMBRE_HOVER_ACCENT,
             )
           : verticalT < 0.62
             ? lerpColor(
                 palette.end,
-                palette.ombreAccent,
-                accentMix * OMBRE_HOVER_ACCENT * 0.55,
+                palette.start,
+                accentMix * OMBRE_HOVER_ACCENT * 0.45,
               )
             : palette.end;
       color = lerpColor(color, bloomTarget, falloff * OMBRE_HOVER_BLOOM);
@@ -167,10 +169,10 @@ function glyphRgb(
   if (motionFactor > 0.04) {
     const motionWash =
       verticalT < 0.38
-        ? lerpColor(palette.start, palette.ombreAccent, 0.58)
+        ? lerpColor(palette.start, palette.end, 0.38)
         : verticalT < 0.58
-          ? lerpColor(palette.ombreAccent, palette.end, 0.72)
-          : lerpColor(palette.end, palette.ombreAccent, 0.48);
+          ? lerpColor(palette.start, palette.end, 0.62)
+          : lerpColor(palette.end, palette.start, 0.28);
     color = lerpColor(color, motionWash, motionFactor * OMBRE_MOTION_TINT);
     if (accentMix > 0) {
       color = lerpColor(
@@ -188,9 +190,9 @@ function glyphRgb(
   return `${color.r}, ${color.g}, ${color.b}`;
 }
 
-function effectiveField(field: number): number {
-  if (field < DENSITY_FLOOR) return 0;
-  return clamp01((field - DENSITY_FLOOR) / (1 - DENSITY_FLOOR));
+function effectiveField(field: number, densityFloor = DENSITY_FLOOR): number {
+  if (field < densityFloor) return 0;
+  return clamp01((field - densityFloor) / (1 - densityFloor));
 }
 
 function glyphIndex(field: number): number {
@@ -198,13 +200,13 @@ function glyphIndex(field: number): number {
   return Math.min(idx, GLYPHS.length - 1);
 }
 
-function pickGlyph(field: number): string {
+function pickGlyph(field: number, densityFloor = DENSITY_FLOOR): string {
   if (field >= PEAK_THRESHOLD) {
     const t = (field - PEAK_THRESHOLD) / (1 - PEAK_THRESHOLD);
     const idx = Math.floor(t * STAR_GLYPHS.length);
     return STAR_GLYPHS[Math.min(idx, STAR_GLYPHS.length - 1)]!;
   }
-  const remapped = effectiveField(field);
+  const remapped = effectiveField(field, densityFloor);
   if (remapped === 0) return " ";
   return GLYPHS[glyphIndex(remapped)]!;
 }
@@ -225,9 +227,15 @@ function motionActivity(
   return clamp01(temporal * 0.52 + flowSwing * 0.33 + glyphDensity * 0.22);
 }
 
-export function AsciiBackground() {
+type AsciiBackgroundProps = {
+  /** Bio page (default) or photo reveal — reveal is sparser, no cursor */
+  variant?: "bio" | "reveal";
+};
+
+export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isReveal = variant === "reveal";
 
   useEffect(() => {
     const root = rootRef.current;
@@ -243,15 +251,15 @@ export function AsciiBackground() {
       "(prefers-reduced-motion: reduce)",
     ).matches;
 
+    const style = getComputedStyle(document.documentElement);
+    const opacityVar = isReveal ? "--ascii-reveal-opacity" : "--ascii-opacity";
     const opacityScale =
-      parseFloat(
-        getComputedStyle(document.documentElement).getPropertyValue(
-          "--ascii-opacity",
-        ),
-      ) || 0.15;
-    const baseAlpha = BASE_ALPHA * (opacityScale / 0.15);
-    const cursorBoost = CURSOR_BOOST * (opacityScale / 0.15);
-    const maxAlpha = 0.16 * (opacityScale / 0.15);
+      parseFloat(style.getPropertyValue(opacityVar)) ||
+      (isReveal ? 0.11 : 0.11);
+    const densityFloor = DENSITY_FLOOR;
+    const baseAlpha = BASE_ALPHA * (opacityScale / 0.15) * ALPHA_SCALE;
+    const cursorBoost = isReveal ? 0 : CURSOR_BOOST * (opacityScale / 0.15);
+    const maxAlpha = 0.11 * (opacityScale / 0.15) * ALPHA_SCALE;
     const palette = readOmbrePalette();
 
     let width = 0;
@@ -326,20 +334,22 @@ export function AsciiBackground() {
       const rows = Math.ceil(height / CELL_PX) + 1;
       const cx = width * 0.5;
       const cy = height * 0.35;
+      const staticStride = 5;
 
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
-          if ((col + row) % 4 !== 0) continue;
+          if ((col + row) % staticStride !== 0) continue;
 
           const baseX = col * CELL_PX + CELL_PX * 0.5;
           const baseY = row * CELL_PX + CELL_PX * 0.5;
 
           const textZoneDist = Math.hypot(baseX - cx, baseY - cy);
-          const textZoneFactor = Math.min(
-            1,
-            textZoneDist / (width * TEXT_ZONE_RADIUS),
-          );
-          const zoneAlpha = 0.35 + textZoneFactor * 0.65;
+          const textZoneFactor = isReveal
+            ? 1
+            : Math.min(1, textZoneDist / (width * TEXT_ZONE_RADIUS));
+          const zoneAlpha = isReveal
+            ? 1
+            : 0.38 + textZoneFactor * 0.62;
 
           const hash = (col * 17 + row * 31) % 100;
           const alpha = baseAlpha * zoneAlpha * (0.55 + (hash / 100) * 0.45);
@@ -378,7 +388,7 @@ export function AsciiBackground() {
           const baseY = row * CELL_PX + CELL_PX * 0.5;
 
           const field = auroraField(col, row, time);
-          const glyph = pickGlyph(field);
+          const glyph = pickGlyph(field, densityFloor);
           if (glyph === " ") continue;
 
           const flow = flowOffset(col, row, time);
@@ -390,7 +400,7 @@ export function AsciiBackground() {
           let dy = flow.dy;
           let boost = 0;
 
-          if (pointer.inside) {
+          if (!isReveal && pointer.inside) {
             const px = baseX - pointer.x;
             const py = baseY - pointer.y;
             const dist = Math.hypot(px, py);
@@ -412,14 +422,17 @@ export function AsciiBackground() {
           const y = baseY + dy + ambient + scrollOffset;
 
           const textZoneDist = Math.hypot(baseX - cx, baseY - cy);
-          const textZoneFactor = Math.min(
-            1,
-            textZoneDist / (width * TEXT_ZONE_RADIUS),
-          );
-          const zoneAlpha = 0.35 + textZoneFactor * 0.65;
+          const textZoneFactor = isReveal
+            ? 1
+            : Math.min(1, textZoneDist / (width * TEXT_ZONE_RADIUS));
+          const zoneAlpha = isReveal
+            ? 1
+            : 0.38 + textZoneFactor * 0.62;
 
           const peakFactor = field > 0.68 ? (field - 0.68) / 0.32 : 0;
-          const motionFactor = motionRaw * (0.28 + textZoneFactor * 0.72);
+          const motionFactor =
+            motionRaw *
+            (isReveal ? 0.2 : 0.12 + textZoneFactor * 0.28);
           const alpha = Math.min(maxAlpha, (baseAlpha + boost) * zoneAlpha);
           const rgb = glyphRgb(
             baseX,
@@ -430,9 +443,9 @@ export function AsciiBackground() {
             peakFactor,
             motionFactor,
             palette,
-            true,
+            false,
           );
-          const peakAlpha = alpha * (1 + peakFactor * 0.25);
+          const peakAlpha = alpha * (1 + peakFactor * (isReveal ? 0.25 : 0.12));
 
           ctx.fillStyle = `rgba(${rgb}, ${peakAlpha})`;
           ctx.fillText(glyph, x, y);
@@ -488,23 +501,31 @@ export function AsciiBackground() {
     });
     ro.observe(root);
 
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
-    window.addEventListener("pointerleave", onPointerLeave);
+    if (!isReveal) {
+      window.addEventListener("pointermove", onPointerMove, { passive: true });
+      window.addEventListener("pointerleave", onPointerLeave);
+    }
     window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerleave", onPointerLeave);
+      if (!isReveal) {
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerleave", onPointerLeave);
+      }
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [variant]);
 
   return (
-    <div ref={rootRef} className="ascii-background" aria-hidden="true">
+    <div
+      ref={rootRef}
+      className={`ascii-background${isReveal ? " ascii-background--reveal" : ""}`}
+      aria-hidden="true"
+    >
       <canvas ref={canvasRef} className="ascii-background__canvas" />
     </div>
   );
