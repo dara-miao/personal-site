@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AsciiBackground } from "@/components/ascii-background";
 import { EmailCopyLink } from "@/components/email-copy-link";
 import { site } from "@/content/site";
@@ -15,12 +15,23 @@ import {
 export function DmLayer() {
   const [tint, setTint] = useState<ScriptTint>("default");
   const [isHovering, setIsHovering] = useState(false);
+  const [canHover, setCanHover] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(hover: hover)");
+    const sync = () => setCanHover(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
   const nextTint = cycleScriptTint(tint, DM_CORNER_TINTS);
-  const displayTint = isHovering ? nextTint : tint;
+  // Hover preview is desktop-only — touch relies on tap to cycle
+  const displayTint = canHover && isHovering ? nextTint : tint;
 
   const cycleTint = useCallback(() => {
     setTint((current) => cycleScriptTint(current, DM_CORNER_TINTS));
+    setIsHovering(false);
   }, []);
 
   return (
@@ -35,9 +46,11 @@ export function DmLayer() {
           <button
             type="button"
             className="dm-mark"
-            aria-label={`DM monogram, ${tint} tint. Click to change color.`}
+            aria-label={`DM monogram, ${tint} tint. Tap to change color.`}
             onClick={cycleTint}
-            onPointerEnter={() => setIsHovering(true)}
+            onPointerEnter={() => {
+              if (canHover) setIsHovering(true);
+            }}
             onPointerLeave={() => setIsHovering(false)}
           >
             <Image

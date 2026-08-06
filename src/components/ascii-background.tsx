@@ -68,6 +68,18 @@ const MOTION_FIELD_SCALE = 11;
 const MOTION_FLOW_SCALE = 2.4;
 /** Cap backing-store resolution — ASCII is abstract texture, not crisp UI */
 const MAX_DPR = 1.5;
+/** Narrow / mobile — lower DPR to cut fillText cost on retina phones */
+const MAX_DPR_NARROW = 1.25;
+const NARROW_MQ = "(max-width: 768px)";
+
+function isNarrowViewport(): boolean {
+  return window.matchMedia(NARROW_MQ).matches;
+}
+
+function resolveCellPx(base: number, narrow: boolean): number {
+  // Slightly larger cells on mobile → fewer glyphs, less jank
+  return narrow ? base * 1.2 : base;
+}
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -327,11 +339,13 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
     let densityFloor = isReveal ? REVEAL_DENSITY_FLOOR : DENSITY_FLOOR;
     let glyphs: GlyphSet = isReveal ? FINE_GLYPHS : GLYPHS;
     let stars: GlyphSet = isReveal ? FINE_STARS : STAR_GLYPHS;
-    const cellPx = isDm
+    const baseCellPx = isDm
       ? FINE_CELL_PX
       : isReveal
         ? REVEAL_CELL_PX
         : BIO_CELL_PX;
+    let narrow = isNarrowViewport();
+    let cellPx = resolveCellPx(baseCellPx, narrow);
     const isFineGrid = isDm || isReveal;
     let baseAlpha = BASE_ALPHA * (rootOpacityScale / 0.15) * ALPHA_SCALE;
     let maxAlpha = 0.11 * (rootOpacityScale / 0.15) * ALPHA_SCALE;
@@ -390,7 +404,12 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
       const rect = root.getBoundingClientRect();
       width = rect.width;
       height = rect.height;
-      dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+      narrow = isNarrowViewport();
+      cellPx = resolveCellPx(baseCellPx, narrow);
+      dpr = Math.min(
+        window.devicePixelRatio || 1,
+        narrow ? MAX_DPR_NARROW : MAX_DPR,
+      );
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       canvas.style.width = `${width}px`;

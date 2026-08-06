@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import "./globals.css";
 
@@ -26,6 +26,12 @@ export const metadata: Metadata = {
     description:
       "Business and AI at USC Marshall. GTM at MindFort AI (YC X25).",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

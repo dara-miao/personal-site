@@ -50,8 +50,8 @@ export default function Home() {
                 ))}
               </section>
 
-              <section className="mt-auto pt-2">
-                <div className="flex min-h-[44px] flex-wrap items-center gap-x-5 gap-y-3">
+              <section className="bio-socials mt-auto pt-2">
+                <div className="bio-socials__links">
                   {site.social.map(({ label, href }) => (
                     <a
                       key={label}

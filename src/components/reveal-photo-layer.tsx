@@ -14,6 +14,8 @@ import {
   site,
 } from "@/content/site";
 
+const CAPTION_AUTO_HIDE_MS = 2800;
+
 function CollageHoverCaption({ caption }: { caption: string }) {
   const separator = " · ";
   const splitIndex = caption.indexOf(separator);
@@ -36,10 +38,25 @@ function CollageHoverCaption({ caption }: { caption: string }) {
 export function RevealPhotoLayer() {
   const layerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const hideCaptionTimerRef = useRef<number | null>(null);
+  const coarsePointerRef = useRef(false);
   const [visiblePhotos, setVisiblePhotos] = useState<Set<number>>(new Set());
+  const [activeCaptionIndex, setActiveCaptionIndex] = useState<number | null>(
+    null,
+  );
 
   useRevealOmbreAmbient(layerRef);
   usePhotoCurtainLift(layerRef);
+
+  useEffect(() => {
+    const media = window.matchMedia("(pointer: coarse)");
+    const sync = () => {
+      coarsePointerRef.current = media.matches;
+    };
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     const grid = gridRef.current;
@@ -73,6 +90,27 @@ export function RevealPhotoLayer() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (activeCaptionIndex === null) return;
+
+    hideCaptionTimerRef.current = window.setTimeout(() => {
+      setActiveCaptionIndex(null);
+      hideCaptionTimerRef.current = null;
+    }, CAPTION_AUTO_HIDE_MS);
+
+    return () => {
+      if (hideCaptionTimerRef.current !== null) {
+        window.clearTimeout(hideCaptionTimerRef.current);
+        hideCaptionTimerRef.current = null;
+      }
+    };
+  }, [activeCaptionIndex]);
+
+  const handleCellActivate = (index: number) => {
+    if (!coarsePointerRef.current) return;
+    setActiveCaptionIndex((current) => (current === index ? null : index));
+  };
+
   return (
     <div ref={layerRef} className="reveal-layer">
       <AsciiBackground variant="reveal" />
@@ -93,7 +131,7 @@ export function RevealPhotoLayer() {
             {site.photos.map((photo, index) => (
               <div
                 key={photo.src}
-                className={`collage-cell group ${visiblePhotos.has(index) ? "collage-cell--visible" : ""}`}
+                className={`collage-cell group ${visiblePhotos.has(index) ? "collage-cell--visible" : ""}${activeCaptionIndex === index ? " collage-cell--caption-active" : ""}`}
                 style={
                   {
                     "--layout-x": photo.layout.x,
@@ -103,6 +141,7 @@ export function RevealPhotoLayer() {
                     "--stagger": `${photoRevealStaggerMs[index]}ms`,
                   } as CSSProperties
                 }
+                onClick={() => handleCellActivate(index)}
               >
                 <Image
                   src={photo.src}

@@ -50,11 +50,30 @@ function usePrefersReducedMotion() {
 function lockDocumentScroll(): () => void {
   const html = document.documentElement;
   const body = document.body;
-  const prevHtmlOverflow = html.style.overflow;
-  const prevBodyOverflow = body.style.overflow;
+  const scrollY = window.scrollY;
 
+  const prev = {
+    htmlOverflow: html.style.overflow,
+    bodyOverflow: body.style.overflow,
+    htmlOverscroll: html.style.overscrollBehavior,
+    bodyOverscroll: body.style.overscrollBehavior,
+    bodyPosition: body.style.position,
+    bodyTop: body.style.top,
+    bodyLeft: body.style.left,
+    bodyRight: body.style.right,
+    bodyWidth: body.style.width,
+  };
+
+  // Fixed body + non-passive touchmove — reliable iOS rubber-band lock
   html.style.overflow = "hidden";
   body.style.overflow = "hidden";
+  html.style.overscrollBehavior = "none";
+  body.style.overscrollBehavior = "none";
+  body.style.position = "fixed";
+  body.style.top = `-${scrollY}px`;
+  body.style.left = "0";
+  body.style.right = "0";
+  body.style.width = "100%";
   window.scrollTo(0, 0);
 
   const preventDefault = (event: Event) => {
@@ -67,24 +86,24 @@ function lockDocumentScroll(): () => void {
     }
   };
 
-  const forceTop = () => {
-    if (window.scrollY !== 0 || window.scrollX !== 0) {
-      window.scrollTo(0, 0);
-    }
-  };
-
   window.addEventListener("wheel", preventDefault, { passive: false });
   window.addEventListener("touchmove", preventDefault, { passive: false });
   window.addEventListener("keydown", preventKeyScroll);
-  window.addEventListener("scroll", forceTop, { passive: true });
 
   return () => {
-    html.style.overflow = prevHtmlOverflow;
-    body.style.overflow = prevBodyOverflow;
+    html.style.overflow = prev.htmlOverflow;
+    body.style.overflow = prev.bodyOverflow;
+    html.style.overscrollBehavior = prev.htmlOverscroll;
+    body.style.overscrollBehavior = prev.bodyOverscroll;
+    body.style.position = prev.bodyPosition;
+    body.style.top = prev.bodyTop;
+    body.style.left = prev.bodyLeft;
+    body.style.right = prev.bodyRight;
+    body.style.width = prev.bodyWidth;
     window.removeEventListener("wheel", preventDefault);
     window.removeEventListener("touchmove", preventDefault);
     window.removeEventListener("keydown", preventKeyScroll);
-    window.removeEventListener("scroll", forceTop);
+    window.scrollTo(0, scrollY);
   };
 }
 
