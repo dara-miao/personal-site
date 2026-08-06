@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { site } from "@/content/site";
 import { TypewriterText } from "@/components/typewriter-text";
 import { IntroRevealProvider } from "@/components/intro-reveal-context";
 import {
+  INTRO_SPLASH_HOLD_AFTER_TYPEWRITER_MS,
   INTRO_TYPEWRITER_CHAR_DELAY_MS,
   INTRO_TYPEWRITER_START_DELAY_MS,
-  getIntroSplashExitMs,
 } from "@/lib/intro-timing";
 
 type IntroSplashProps = {
@@ -24,6 +24,28 @@ const SCROLL_KEYS = new Set([
   " ",
   "Spacebar",
 ]);
+
+function subscribeReducedMotion(onChange: () => void) {
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+function getReducedMotionSnapshot() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function getReducedMotionServerSnapshot() {
+  return false;
+}
+
+function usePrefersReducedMotion() {
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    getReducedMotionServerSnapshot,
+  );
+}
 
 function lockDocumentScroll(): () => void {
   const html = document.documentElement;
@@ -67,53 +89,73 @@ function lockDocumentScroll(): () => void {
 }
 
 export function IntroSplash({ children }: IntroSplashProps) {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [showSplash, setShowSplash] = useState(true);
   const [revealContent, setRevealContent] = useState(false);
+  const unlockRef = useRef<(() => void) | null>(null);
+  const holdTimerRef = useRef<number | null>(null);
+  const exitingRef = useRef(false);
+
+  const splashActive = !prefersReducedMotion && showSplash;
+  const contentRevealed = prefersReducedMotion || revealContent;
 
   useEffect(() => {
-    const reducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    if (prefersReducedMotion) return;
 
-    if (reducedMotion) {
-      setShowSplash(false);
-      setRevealContent(true);
-      return;
-    }
-
-    const unlock = lockDocumentScroll();
-    const exitAt = getIntroSplashExitMs();
-
-    const revealTimer = window.setTimeout(() => {
-      unlock();
-      setShowSplash(false);
-      setRevealContent(true);
-    }, exitAt);
+    unlockRef.current = lockDocumentScroll();
 
     return () => {
-      window.clearTimeout(revealTimer);
-      unlock();
+      if (holdTimerRef.current !== null) {
+        window.clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+      unlockRef.current?.();
+      unlockRef.current = null;
     };
-  }, []);
+  }, [prefersReducedMotion]);
+
+  const beginExit = () => {
+    if (exitingRef.current) return;
+    exitingRef.current = true;
+
+    unlockRef.current?.();
+    unlockRef.current = null;
+    setShowSplash(false);
+    setRevealContent(true);
+  };
+
+  const handleTypewriterComplete = () => {
+    if (exitingRef.current || holdTimerRef.current !== null) return;
+
+    holdTimerRef.current = window.setTimeout(() => {
+      holdTimerRef.current = null;
+      beginExit();
+    }, INTRO_SPLASH_HOLD_AFTER_TYPEWRITER_MS);
+  };
 
   return (
     <>
       <div
-        className={`intro-splash ${showSplash ? "" : "intro-splash--exit"}`}
-        aria-hidden={!showSplash}
+        className={`intro-splash ${splashActive ? "" : "intro-splash--exit"}`}
+        aria-hidden={!splashActive}
       >
         <h1 className="intro-splash-title">
-          <TypewriterText
-            text={site.name}
-            charDelay={INTRO_TYPEWRITER_CHAR_DELAY_MS}
-            startDelay={INTRO_TYPEWRITER_START_DELAY_MS}
-          />
+          {prefersReducedMotion ? (
+            site.name
+          ) : (
+            <TypewriterText
+              text={site.name}
+              charDelay={INTRO_TYPEWRITER_CHAR_DELAY_MS}
+              startDelay={INTRO_TYPEWRITER_START_DELAY_MS}
+              onComplete={handleTypewriterComplete}
+            />
+          )}
         </h1>
       </div>
 
-      <IntroRevealProvider revealed={revealContent}>
+      <IntroRevealProvider revealed={contentRevealed}>
         <div
-          className={`intro-content ${revealContent ? "intro-content--visible" : ""}`}
+          className={`intro-content ${contentRevealed ? "intro-content--visible" : ""}`}
         >
           {children}
         </div>

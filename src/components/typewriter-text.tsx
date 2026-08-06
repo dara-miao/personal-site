@@ -1,24 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type TypewriterTextProps = {
   text: string;
   charDelay?: number;
   startDelay?: number;
   className?: string;
+  /** Fires once when the full string has been typed. */
+  onComplete?: () => void;
 };
 
 export function TypewriterText({
   text,
-  charDelay = 70,
-  startDelay = 400,
+  charDelay = 40,
+  startDelay = 300,
   className = "",
+  onComplete,
 }: TypewriterTextProps) {
-  const [displayed, setDisplayed] = useState("");
-  const [index, setIndex] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(0);
   const [started, setStarted] = useState(false);
-  const [showCursor, setShowCursor] = useState(true);
+  const onCompleteRef = useRef(onComplete);
+  const completedRef = useRef(false);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setStarted(true), startDelay);
@@ -26,38 +33,32 @@ export function TypewriterText({
   }, [startDelay]);
 
   useEffect(() => {
-    if (!started || index >= text.length) return;
+    if (!started || visibleCount >= text.length) return;
 
     const timer = window.setTimeout(() => {
-      setDisplayed((current) => current + text[index]);
-      setIndex((current) => current + 1);
+      setVisibleCount((current) => current + 1);
     }, charDelay);
 
     return () => window.clearTimeout(timer);
-  }, [started, index, text, charDelay]);
+  }, [started, visibleCount, text.length, charDelay]);
 
   useEffect(() => {
-    if (!started || index < text.length) return;
+    if (!started || visibleCount < text.length || completedRef.current) return;
+    completedRef.current = true;
+    onCompleteRef.current?.();
+  }, [started, visibleCount, text.length]);
 
-    let blinkCount = 0;
-    const timer = window.setInterval(() => {
-      setShowCursor((current) => !current);
-      blinkCount += 1;
-      if (blinkCount >= 4) {
-        window.clearInterval(timer);
-        setShowCursor(false);
-      }
-    }, 400);
-
-    return () => window.clearInterval(timer);
-  }, [started, index, text.length]);
+  const chars = text.slice(0, visibleCount).split("");
+  const typing = started && visibleCount < text.length;
 
   return (
     <span className={className}>
-      {displayed}
-      {started && index < text.length && showCursor ? (
-        <span className="typewriter-cursor">|</span>
-      ) : null}
+      {chars.map((char, index) => (
+        <span key={`${index}-${char}`} className="typewriter-char">
+          {char === " " ? "\u00a0" : char}
+        </span>
+      ))}
+      {typing ? <span className="typewriter-cursor">|</span> : null}
     </span>
   );
 }

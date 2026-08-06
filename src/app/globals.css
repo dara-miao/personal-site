@@ -80,6 +80,18 @@ body {
   color: #1a1a18;
 }
 
+.typewriter-char {
+  display: inline-block;
+  opacity: 0;
+  animation: typewriter-char-fade 75ms ease forwards;
+}
+
+@keyframes typewriter-char-fade {
+  to {
+    opacity: 1;
+  }
+}
+
 .typewriter-cursor {
   opacity: 0.6;
 }
@@ -100,6 +112,11 @@ body {
     display: none;
   }
 
+  .typewriter-char {
+    opacity: 1;
+    animation: none;
+  }
+
   .intro-content {
     transform: none;
     transition: none;
@@ -110,7 +127,6 @@ body {
     transform: none;
     transition: none;
   }
-
 }
 
 ::selection {
