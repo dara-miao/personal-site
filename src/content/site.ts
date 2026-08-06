@@ -98,7 +98,7 @@ export const site = {
   ],
   paragraphs: [
     [
-      { type: "text" as const, value: "I do GTM at " },
+      { type: "text" as const, value: "I'm currently doing GTM at " },
       {
         type: "link" as const,
         href: "https://www.mindfort.ai/",
