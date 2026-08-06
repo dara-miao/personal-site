@@ -457,8 +457,12 @@ body {
 @media (max-width: 480px) {
   .profile-card__row {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     gap: 16px;
+  }
+
+  .profile-card__identity {
+    align-items: center;
   }
 
   .profile-card__headshot {

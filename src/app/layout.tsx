@@ -3,6 +3,7 @@ import { ScrollToTop } from "@/components/scroll-to-top";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://daramiao.com"),
   title: "Dara Miao",
   description:
     "Business and AI at USC Marshall. GTM at MindFort AI (YC X25).",
