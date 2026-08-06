@@ -6,7 +6,7 @@ import { createNoise3D } from "simplex-noise";
 /**
  * Density ramp — sparse to flowing (warm minimal, not matrix).
  * Leading spaces keep the cream page visible between bands.
- * Bio + reveal always use these; DM tint sets may diverge below.
+ * Bio uses these; reveal + DM fine layers use dots/dashes below.
  */
 const GLYPHS = [" ", " ", " ", "·", ".", "∘", "─", "~", "≈", "∿"] as const;
 const STAR_GLYPHS = ["'", "+", "*"] as const;
@@ -14,17 +14,32 @@ const STAR_GLYPHS = ["'", "+", "*"] as const;
 const DENSITY_FLOOR = 0.4;
 const PEAK_THRESHOLD = 0.97;
 
-/** DM gold — warmer denser field (fewer blanks, more mid/warm glyphs) */
-const DM_GOLD_GLYPHS = [" ", " ", "·", ".", "∘", "·", "~", "≈", "∿", "✦"] as const;
-const DM_GOLD_STARS = ["+", "*", "✧"] as const;
-const DM_GOLD_DENSITY_FLOOR = 0.32;
+/** Fine texture — dots/dashes for reveal + DM (no decorative stars) */
+const FINE_GLYPHS = [" ", "·", "·", ".", ".", "∙", "─", "·", "~", "."] as const;
+const FINE_STARS = ["·", ".", "+"] as const;
 
-/** DM blue — cooler airy field (circular glyphs); denser than before for light-blue bg */
-const DM_BLUE_GLYPHS = [" ", " ", " ", "·", "˚", ".", "∘", "○", "~", "∿"] as const;
-const DM_BLUE_STARS = ["'", "˚", "∘"] as const;
-const DM_BLUE_DENSITY_FLOOR = 0.38;
+/** DM default — lower than bio floor so cream wash isn't mostly empty */
+const DM_DEFAULT_DENSITY_FLOOR = 0.28;
 
-const CELL_PX = 13;
+/** Reveal gallery gutters — fine grid, slightly airier than DM gold */
+const REVEAL_DENSITY_FLOOR = 0.3;
+
+/** DM gold — warmer denser fine texture (dots/dashes, no decorative stars) */
+const DM_GOLD_GLYPHS = FINE_GLYPHS;
+const DM_GOLD_STARS = FINE_STARS;
+const DM_GOLD_DENSITY_FLOOR = 0.24;
+
+/** DM blue — cooler fine texture; denser floor for light-blue bg */
+const DM_BLUE_GLYPHS = [" ", " ", "·", "·", "˚", ".", "∙", "─", "~", "·"] as const;
+const DM_BLUE_STARS = ["·", "˚", "."] as const;
+const DM_BLUE_DENSITY_FLOOR = 0.28;
+
+/** Bio cell size — larger, readable ASCII characters */
+const BIO_CELL_PX = 10;
+/** Reveal gallery — mid step between bio (10) and DM (7) */
+const REVEAL_CELL_PX = 8.5;
+/** DM — finest grid */
+const FINE_CELL_PX = 7;
 const BASE_ALPHA = 0.11;
 const ALPHA_SCALE = 0.72;
 /** Fraction of viewport width for bio text legibility fade */
@@ -51,6 +66,8 @@ const OMBRE_MOTION_ACCENT = 0.08;
 const MOTION_SAMPLE_MS = 32;
 const MOTION_FIELD_SCALE = 11;
 const MOTION_FLOW_SCALE = 2.4;
+/** Cap backing-store resolution — ASCII is abstract texture, not crisp UI */
+const MAX_DPR = 1.5;
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -140,7 +157,7 @@ function dmTintFieldStyle(tint: string): {
     };
   }
   return {
-    densityFloor: DENSITY_FLOOR,
+    densityFloor: DM_DEFAULT_DENSITY_FLOOR,
     glyphs: GLYPHS,
     stars: STAR_GLYPHS,
   };
@@ -305,11 +322,17 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
       parseFloat(rootStyle.getPropertyValue(opacityVar)) || 0.11;
     const cursorBoost =
       isReveal || isDm ? 0 : CURSOR_BOOST * (rootOpacityScale / 0.15);
-    // Bio/reveal: fixed :root palette + density (never tint-aware)
+    // Bio/reveal: fixed :root palette (never tint-aware); reveal uses fine glyphs
     let palette = readOmbrePalette();
-    let densityFloor = DENSITY_FLOOR;
-    let glyphs: GlyphSet = GLYPHS;
-    let stars: GlyphSet = STAR_GLYPHS;
+    let densityFloor = isReveal ? REVEAL_DENSITY_FLOOR : DENSITY_FLOOR;
+    let glyphs: GlyphSet = isReveal ? FINE_GLYPHS : GLYPHS;
+    let stars: GlyphSet = isReveal ? FINE_STARS : STAR_GLYPHS;
+    const cellPx = isDm
+      ? FINE_CELL_PX
+      : isReveal
+        ? REVEAL_CELL_PX
+        : BIO_CELL_PX;
+    const isFineGrid = isDm || isReveal;
     let baseAlpha = BASE_ALPHA * (rootOpacityScale / 0.15) * ALPHA_SCALE;
     let maxAlpha = 0.11 * (rootOpacityScale / 0.15) * ALPHA_SCALE;
 
@@ -341,19 +364,111 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
     let raf = 0;
     let time = 0;
     let scrollOffset = 0;
+    let scrollRaf = 0;
     let pointer = { x: -9999, y: -9999, inside: false };
-    let visible = !document.hidden;
+    /** Tab visible (not backgrounded) */
+    let pageVisible = !document.hidden;
+    /**
+     * Chapter geometrically/scroll-visible.
+     * Bio uses IntersectionObserver; reveal/DM are fixed so use scroll heuristics.
+     */
+    let inView = true;
+    let looping = false;
+    let cachedLiftStart = 0;
+    let pageContentEl: Element | null = null;
+    let dmSpacerEl: HTMLElement | null = null;
+
+    const refreshScrollMetrics = () => {
+      pageContentEl = document.querySelector(".page-content");
+      dmSpacerEl = document.querySelector(
+        ".dm-scroll-spacer",
+      ) as HTMLElement | null;
+      cachedLiftStart = dmSpacerEl?.offsetTop ?? 0;
+    };
 
     const resize = () => {
       const rect = root.getBoundingClientRect();
       width = rect.width;
       height = rect.height;
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (isReveal || isDm) refreshScrollMetrics();
+    };
+
+    /** Fixed reveal/DM canvases always "intersect" the viewport — gate on scroll chapter. */
+    const updateFixedChapterVisibility = () => {
+      if (!pageContentEl || !dmSpacerEl) {
+        refreshScrollMetrics();
+      }
+      if (!pageContentEl || !dmSpacerEl) {
+        inView = true;
+        return;
+      }
+
+      const viewport = window.innerHeight;
+      const scrollY = window.scrollY;
+      const liftDistance = Math.max(viewport, 1);
+      const liftProgress = Math.max(
+        0,
+        Math.min(1, (scrollY - cachedLiftStart) / liftDistance),
+      );
+
+      if (isReveal) {
+        // Freeze as soon as the curtain translates — last frame rides the layer off-screen.
+        // Avoids dual fine-grid RAF with DM during the expensive lift phase.
+        if (liftProgress > 0.02) {
+          inView = false;
+          return;
+        }
+        const bioBottom = pageContentEl.getBoundingClientRect().bottom;
+        inView = bioBottom < viewport * 0.98;
+        return;
+      }
+
+      if (isDm) {
+        // Wait until DM is substantially uncovered before starting the fine grid.
+        inView = liftProgress > 0.42;
+      }
+    };
+
+    const shouldAnimate = () =>
+      !reducedMotion && pageVisible && inView && width > 0 && height > 0;
+
+    const stopLoop = () => {
+      looping = false;
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+
+    // Assigned after draw() so the RAF loop can close over it safely.
+    let runFrame: (() => void) | null = null;
+
+    const tick = () => {
+      if (!shouldAnimate()) {
+        looping = false;
+        raf = 0;
+        return;
+      }
+      time += 16;
+      runFrame?.();
+      raf = requestAnimationFrame(tick);
+    };
+
+    const startLoop = () => {
+      if (looping || !shouldAnimate()) return;
+      looping = true;
+      raf = requestAnimationFrame(tick);
+    };
+
+    const syncAnimation = () => {
+      if (shouldAnimate()) startLoop();
+      else stopLoop();
     };
 
     /** Aurora-like layered noise — vertical bands with organic drift */
@@ -401,37 +516,40 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
       syncDmTintStyle();
 
       ctx.clearRect(0, 0, width, height);
-      ctx.font = `${CELL_PX}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.font = `${cellPx}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
-      const cols = Math.ceil(width / CELL_PX) + 1;
-      const rows = Math.ceil(height / CELL_PX) + 1;
+      const cols = Math.ceil(width / cellPx) + 1;
+      const rows = Math.ceil(height / cellPx) + 1;
       const cx = width * 0.5;
       const cy = height * 0.35;
-      // Gold denser stride / blue airier — DM only
-      const staticStride = isDm
-        ? densityFloor < 0.36
-          ? 4
-          : densityFloor > 0.45
-            ? 6
-            : 5
+      // Gold denser stride / blue airier — fine grids use tighter strides
+      const staticStride = isFineGrid
+        ? densityFloor < 0.3
+          ? 3
+          : densityFloor > 0.38
+            ? 5
+            : 4
         : 5;
 
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
           if ((col + row) % staticStride !== 0) continue;
 
-          const baseX = col * CELL_PX + CELL_PX * 0.5;
-          const baseY = row * CELL_PX + CELL_PX * 0.5;
+          const baseX = col * cellPx + cellPx * 0.5;
+          const baseY = row * cellPx + cellPx * 0.5;
 
           const textZoneDist = Math.hypot(baseX - cx, baseY - cy);
           const textZoneFactor = isReveal
             ? 1
             : Math.min(1, textZoneDist / (width * TEXT_ZONE_RADIUS));
+          // DM: gentler center fade so texture stays visible under chapter copy
           const zoneAlpha = isReveal
             ? 1
-            : 0.38 + textZoneFactor * 0.62;
+            : isDm
+              ? 0.58 + textZoneFactor * 0.42
+              : 0.38 + textZoneFactor * 0.62;
 
           const hash = (col * 17 + row * 31) % 100;
           const alpha = baseAlpha * zoneAlpha * (0.55 + (hash / 100) * 0.45);
@@ -457,19 +575,19 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
       syncDmTintStyle();
 
       ctx.clearRect(0, 0, width, height);
-      ctx.font = `${CELL_PX}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.font = `${cellPx}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
-      const cols = Math.ceil(width / CELL_PX) + 1;
-      const rows = Math.ceil(height / CELL_PX) + 1;
+      const cols = Math.ceil(width / cellPx) + 1;
+      const rows = Math.ceil(height / cellPx) + 1;
       const cx = width * 0.5;
       const cy = height * 0.35;
 
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
-          const baseX = col * CELL_PX + CELL_PX * 0.5;
-          const baseY = row * CELL_PX + CELL_PX * 0.5;
+          const baseX = col * cellPx + cellPx * 0.5;
+          const baseY = row * cellPx + cellPx * 0.5;
 
           const field = auroraField(col, row, time);
           const glyph = pickGlyph(field, densityFloor, glyphs, stars);
@@ -503,15 +621,20 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
             1.2;
 
           const x = baseX + dx;
-          const y = baseY + dy + ambient + scrollOffset;
+          // Fixed DM viewport must not inherit page scroll drift — at DM depth
+          // scrollY * SCROLL_DRIFT leaves an empty cream band at the top edge.
+          const y = baseY + dy + ambient + (isDm ? 0 : scrollOffset);
 
           const textZoneDist = Math.hypot(baseX - cx, baseY - cy);
           const textZoneFactor = isReveal
             ? 1
             : Math.min(1, textZoneDist / (width * TEXT_ZONE_RADIUS));
+          // DM: gentler center fade so texture stays visible under chapter copy
           const zoneAlpha = isReveal
             ? 1
-            : 0.38 + textZoneFactor * 0.62;
+            : isDm
+              ? 0.58 + textZoneFactor * 0.42
+              : 0.38 + textZoneFactor * 0.62;
 
           const peakFactor = field > 0.68 ? (field - 0.68) / 0.32 : 0;
           const motionFactor =
@@ -537,13 +660,7 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
       }
     };
 
-    const tick = () => {
-      if (visible) {
-        time += 16;
-        draw();
-      }
-      raf = requestAnimationFrame(tick);
-    };
+    runFrame = draw;
 
     const onPointerMove = (event: PointerEvent) => {
       const rect = root.getBoundingClientRect();
@@ -563,11 +680,22 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
     };
 
     const onScroll = () => {
-      scrollOffset = window.scrollY * SCROLL_DRIFT;
+      if (scrollRaf) return;
+      scrollRaf = requestAnimationFrame(() => {
+        scrollRaf = 0;
+        if (!isDm) {
+          scrollOffset = window.scrollY * SCROLL_DRIFT;
+        }
+        if (isReveal || isDm) {
+          updateFixedChapterVisibility();
+          syncAnimation();
+        }
+      });
     };
 
     const onVisibility = () => {
-      visible = !document.hidden;
+      pageVisible = !document.hidden;
+      syncAnimation();
     };
 
     const render = () => {
@@ -576,25 +704,50 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
     };
 
     resize();
+    if (isReveal || isDm) {
+      updateFixedChapterVisibility();
+    }
+    // Paint one frame so first paint isn't blank, then only loop when in view.
     render();
-    if (!reducedMotion) tick();
+    syncAnimation();
 
     const ro = new ResizeObserver(() => {
       resize();
       render();
+      syncAnimation();
     });
     ro.observe(root);
+    // DM is fixed inset:0 — also watch the layer so hard-refresh / late layout
+    // still sizes the canvas to the full viewport (not a zero-height first paint).
+    if (isDm && dmLayerEl) {
+      ro.observe(dmLayerEl);
+    }
+
+    let io: IntersectionObserver | null = null;
+    if (!isReveal && !isDm) {
+      io = new IntersectionObserver(
+        ([entry]) => {
+          inView = !!entry?.isIntersecting;
+          syncAnimation();
+        },
+        { root: null, threshold: 0, rootMargin: "8% 0px" },
+      );
+      io.observe(root);
+    }
 
     if (!isReveal && !isDm) {
       window.addEventListener("pointermove", onPointerMove, { passive: true });
       window.addEventListener("pointerleave", onPointerLeave);
     }
+    // Bio: scroll drift; reveal/DM: chapter visibility gating
     window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      cancelAnimationFrame(raf);
+      stopLoop();
+      if (scrollRaf) cancelAnimationFrame(scrollRaf);
       ro.disconnect();
+      io?.disconnect();
       if (!isReveal && !isDm) {
         window.removeEventListener("pointermove", onPointerMove);
         window.removeEventListener("pointerleave", onPointerLeave);
@@ -602,7 +755,7 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [variant]);
+  }, [variant, isReveal]);
 
   return (
     <div

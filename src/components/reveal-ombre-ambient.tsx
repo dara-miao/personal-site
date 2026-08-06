@@ -17,8 +17,57 @@ export function useRevealOmbreAmbient(
     if (reducedMotion) return;
 
     let rafId = 0;
+    let looping = false;
+    let pageVisible = !document.hidden;
+    let inView = false;
+    let scrollRaf = 0;
+    let cachedLiftStart = 0;
+    let pageContentEl: Element | null = null;
+    let dmSpacerEl: HTMLElement | null = null;
+
+    const refreshScrollMetrics = () => {
+      pageContentEl = document.querySelector(".page-content");
+      dmSpacerEl = document.querySelector(
+        ".dm-scroll-spacer",
+      ) as HTMLElement | null;
+      cachedLiftStart = dmSpacerEl?.offsetTop ?? 0;
+    };
+
+    const updateVisibility = () => {
+      if (!pageContentEl || !dmSpacerEl) {
+        refreshScrollMetrics();
+      }
+      if (!pageContentEl || !dmSpacerEl) {
+        inView = true;
+        return;
+      }
+
+      const viewport = window.innerHeight;
+      const scrollY = window.scrollY;
+      const liftProgress = Math.max(
+        0,
+        Math.min(1, (scrollY - cachedLiftStart) / Math.max(viewport, 1)),
+      );
+
+      // Pause CSS-variable thrashing while the curtain is translating.
+      if (liftProgress > 0.02) {
+        inView = false;
+        return;
+      }
+
+      const bioBottom = pageContentEl.getBoundingClientRect().bottom;
+      inView = bioBottom < viewport * 0.98;
+    };
+
+    const shouldAnimate = () => pageVisible && inView;
 
     const tick = (time: number) => {
+      if (!shouldAnimate()) {
+        looping = false;
+        rafId = 0;
+        return;
+      }
+
       const t = time / 1000;
 
       const d1x = Math.sin(t * 0.18) * 9 + Math.sin(t * 0.07) * 4.5;
@@ -49,8 +98,59 @@ export function useRevealOmbreAmbient(
       rafId = requestAnimationFrame(tick);
     };
 
-    rafId = requestAnimationFrame(tick);
+    const startLoop = () => {
+      if (looping || !shouldAnimate()) return;
+      looping = true;
+      rafId = requestAnimationFrame(tick);
+    };
 
-    return () => cancelAnimationFrame(rafId);
+    const stopLoop = () => {
+      looping = false;
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
+    };
+
+    const sync = () => {
+      if (shouldAnimate()) startLoop();
+      else stopLoop();
+    };
+
+    const onScroll = () => {
+      if (scrollRaf) return;
+      scrollRaf = requestAnimationFrame(() => {
+        scrollRaf = 0;
+        updateVisibility();
+        sync();
+      });
+    };
+
+    const onVisibility = () => {
+      pageVisible = !document.hidden;
+      sync();
+    };
+
+    const onResize = () => {
+      refreshScrollMetrics();
+      updateVisibility();
+      sync();
+    };
+
+    refreshScrollMetrics();
+    updateVisibility();
+    sync();
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize, { passive: true });
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      stopLoop();
+      if (scrollRaf) cancelAnimationFrame(scrollRaf);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [layerRef]);
 }

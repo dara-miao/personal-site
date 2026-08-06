@@ -13,7 +13,7 @@ import {
 
 /** Full-viewport DM chapter — fixed beneath the photo curtain */
 export function DmLayer() {
-  const [tint, setTint] = useState<ScriptTint>("gold");
+  const [tint, setTint] = useState<ScriptTint>("default");
   const [isHovering, setIsHovering] = useState(false);
 
   const nextTint = cycleScriptTint(tint, DM_CORNER_TINTS);

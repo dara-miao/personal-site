@@ -15,7 +15,7 @@
   --reveal-footer-secondary: #6e6d68;
   --reveal-footer-hover: #1a1a18;
   --ascii-opacity: 0.11;
-  --ascii-reveal-opacity: 0.11;
+  --ascii-reveal-opacity: 0.14;
   --ascii-color: #1a1a18;
   --ascii-ombre-start: #fdfdfb;
   --ascii-ombre-end: #d4a574;
@@ -40,14 +40,9 @@
   --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
+/* Native scroll — CSS smooth feels laggy with curtain / ASCII scroll listeners */
 html {
-  scroll-behavior: smooth;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  html {
-    scroll-behavior: smooth;
-  }
+  scroll-behavior: auto;
 }
 
 body {
@@ -139,6 +134,7 @@ body {
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
+  contain: layout paint;
 }
 
 .ascii-background__canvas {
@@ -520,6 +516,9 @@ body {
 }
 
 .reveal-layer--lifting {
+  will-change: transform;
+  /* Isolate lift-phase compositing from page layout/paint work */
+  contain: layout paint;
   box-shadow:
     0 -8px 32px #00000014,
     0 16px 48px #0000001f,
@@ -953,32 +952,33 @@ body {
    Ombre start must NOT match the page wash — light-on-light kills glyphs. */
 .dm-layer[data-tint="default"] {
   background-color: var(--color-bg);
-  --ascii-opacity: 0.24;
-  --ascii-color: #0a0a09;
-  --ascii-ombre-start: #6e6d68;
-  --ascii-ombre-end: #3d3a34;
-  --ascii-ombre-accent: #8a8070;
-  --ascii-ombre-accent-mix: 0.16;
+  /* ~0.42 × ALPHA_SCALE(0.72) → baseAlpha ≈ 0.22 — readable on cream */
+  --ascii-opacity: 0.42;
+  --ascii-color: #050504;
+  --ascii-ombre-start: #4a4944;
+  --ascii-ombre-end: #24221e;
+  --ascii-ombre-accent: #6a6054;
+  --ascii-ombre-accent-mix: 0.2;
 }
 
 .dm-layer[data-tint="gold"] {
   background-color: #e8e4dc;
-  --ascii-opacity: 0.24;
-  --ascii-color: #1a1208;
-  --ascii-ombre-start: #8a7040;
-  --ascii-ombre-end: #a86e1e;
-  --ascii-ombre-accent: #c4882e;
-  --ascii-ombre-accent-mix: 0.28;
+  --ascii-opacity: 0.40;
+  --ascii-color: #100c06;
+  --ascii-ombre-start: #6a5530;
+  --ascii-ombre-end: #8a5814;
+  --ascii-ombre-accent: #a87020;
+  --ascii-ombre-accent-mix: 0.32;
 }
 
 .dm-layer[data-tint="blue"] {
   background-color: #e4eaf0;
-  --ascii-opacity: 0.28;
-  --ascii-color: #0a1420;
-  --ascii-ombre-start: #4a6a88;
-  --ascii-ombre-end: #2a5578;
-  --ascii-ombre-accent: #3d6f9c;
-  --ascii-ombre-accent-mix: 0.2;
+  --ascii-opacity: 0.44;
+  --ascii-color: #060e18;
+  --ascii-ombre-start: #3a5470;
+  --ascii-ombre-end: #1e4060;
+  --ascii-ombre-accent: #2e5a84;
+  --ascii-ombre-accent-mix: 0.24;
 }
 
 .dm-layer-inner {
