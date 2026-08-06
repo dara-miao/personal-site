@@ -101,6 +101,18 @@ function parseHexColor(hex: string): Rgb {
   };
 }
 
+/** Match DM CSS tint transitions (~1000ms ease-in-out) */
+const DM_TINT_LERP_MS = 1000;
+
+type OmbrePalette = {
+  base: Rgb;
+  accent: Rgb;
+  ombreAccent: Rgb;
+  accentMix: number;
+  start: Rgb;
+  end: Rgb;
+};
+
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
@@ -114,14 +126,42 @@ function lerpColor(from: Rgb, to: Rgb, t: number): Rgb {
   };
 }
 
-function readOmbrePalette(el: Element = document.documentElement): {
-  base: Rgb;
-  accent: Rgb;
-  ombreAccent: Rgb;
-  accentMix: number;
-  start: Rgb;
-  end: Rgb;
-} {
+/** CSS ease-in-out — symmetric enter/leave for DM tint palette */
+function easeInOut(t: number): number {
+  const x = clamp01(t);
+  return x < 0.5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2;
+}
+
+function clonePalette(palette: OmbrePalette): OmbrePalette {
+  return {
+    base: { ...palette.base },
+    accent: { ...palette.accent },
+    ombreAccent: { ...palette.ombreAccent },
+    accentMix: palette.accentMix,
+    start: { ...palette.start },
+    end: { ...palette.end },
+  };
+}
+
+function lerpPalette(
+  from: OmbrePalette,
+  to: OmbrePalette,
+  t: number,
+): OmbrePalette {
+  const mix = clamp01(t);
+  return {
+    base: lerpColor(from.base, to.base, mix),
+    accent: lerpColor(from.accent, to.accent, mix),
+    ombreAccent: lerpColor(from.ombreAccent, to.ombreAccent, mix),
+    accentMix: lerp(from.accentMix, to.accentMix, mix),
+    start: lerpColor(from.start, to.start, mix),
+    end: lerpColor(from.end, to.end, mix),
+  };
+}
+
+function readOmbrePalette(
+  el: Element = document.documentElement,
+): OmbrePalette {
   const style = getComputedStyle(el);
   const accentMixRaw = parseFloat(
     style.getPropertyValue("--ascii-ombre-accent-mix").trim(),
@@ -350,26 +390,80 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
     let baseAlpha = BASE_ALPHA * (rootOpacityScale / 0.15) * ALPHA_SCALE;
     let maxAlpha = 0.11 * (rootOpacityScale / 0.15) * ALPHA_SCALE;
 
-    /** DM only — re-read tint CSS vars + glyph/density when data-tint changes */
+    /**
+     * DM only — when data-tint changes, lerp palette/alpha over DM_TINT_LERP_MS
+     * (enter AND leave). Snapping here made hover-out feel harsh vs CSS fades.
+     */
     let lastDmTint = "";
-    const syncDmTintStyle = () => {
-      if (!isDm || !dmLayerEl) return;
+    let tintAnim: {
+      fromPalette: OmbrePalette;
+      toPalette: OmbrePalette;
+      fromBaseAlpha: number;
+      toBaseAlpha: number;
+      fromMaxAlpha: number;
+      toMaxAlpha: number;
+      startMs: number;
+    } | null = null;
 
-      const dmTint = dmLayerEl.getAttribute("data-tint") ?? "default";
-      if (dmTint === lastDmTint) return;
-      lastDmTint = dmTint;
+    const applyDmTintTarget = (dmTint: string, nowMs: number) => {
+      if (!dmLayerEl) return;
 
       const field = dmTintFieldStyle(dmTint);
       densityFloor = field.densityFloor;
       glyphs = field.glyphs;
       stars = field.stars;
-      palette = readOmbrePalette(dmLayerEl);
 
       const style = getComputedStyle(dmLayerEl);
       const opacityScale =
         parseFloat(style.getPropertyValue("--ascii-opacity")) || 0.11;
-      baseAlpha = BASE_ALPHA * (opacityScale / 0.15) * ALPHA_SCALE;
-      maxAlpha = 0.11 * (opacityScale / 0.15) * ALPHA_SCALE;
+      const nextBaseAlpha = BASE_ALPHA * (opacityScale / 0.15) * ALPHA_SCALE;
+      const nextMaxAlpha = 0.11 * (opacityScale / 0.15) * ALPHA_SCALE;
+      const nextPalette = readOmbrePalette(dmLayerEl);
+
+      // First paint / reduced motion — snap. Later enter+leave both lerp.
+      if (reducedMotion || lastDmTint === "") {
+        palette = nextPalette;
+        baseAlpha = nextBaseAlpha;
+        maxAlpha = nextMaxAlpha;
+        tintAnim = null;
+      } else {
+        tintAnim = {
+          fromPalette: clonePalette(palette),
+          toPalette: nextPalette,
+          fromBaseAlpha: baseAlpha,
+          toBaseAlpha: nextBaseAlpha,
+          fromMaxAlpha: maxAlpha,
+          toMaxAlpha: nextMaxAlpha,
+          startMs: nowMs,
+        };
+      }
+
+      lastDmTint = dmTint;
+    };
+
+    const syncDmTintStyle = (nowMs = performance.now()) => {
+      if (!isDm || !dmLayerEl) return;
+
+      const dmTint = dmLayerEl.getAttribute("data-tint") ?? "default";
+      if (dmTint !== lastDmTint) {
+        applyDmTintTarget(dmTint, nowMs);
+      }
+
+      if (!tintAnim) return;
+
+      const linearT = (nowMs - tintAnim.startMs) / DM_TINT_LERP_MS;
+      if (linearT >= 1) {
+        palette = tintAnim.toPalette;
+        baseAlpha = tintAnim.toBaseAlpha;
+        maxAlpha = tintAnim.toMaxAlpha;
+        tintAnim = null;
+        return;
+      }
+
+      const mix = easeInOut(linearT);
+      palette = lerpPalette(tintAnim.fromPalette, tintAnim.toPalette, mix);
+      baseAlpha = lerp(tintAnim.fromBaseAlpha, tintAnim.toBaseAlpha, mix);
+      maxAlpha = lerp(tintAnim.fromMaxAlpha, tintAnim.toMaxAlpha, mix);
     };
 
     let width = 0;
@@ -754,6 +848,19 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
       io.observe(root);
     }
 
+    // Repaint on tint change (reduced-motion / wake the loop). syncDmTintStyle lerps — never snap.
+    let tintMo: MutationObserver | null = null;
+    if (isDm && dmLayerEl) {
+      tintMo = new MutationObserver(() => {
+        render();
+        syncAnimation();
+      });
+      tintMo.observe(dmLayerEl, {
+        attributes: true,
+        attributeFilter: ["data-tint"],
+      });
+    }
+
     if (!isReveal && !isDm) {
       window.addEventListener("pointermove", onPointerMove, { passive: true });
       window.addEventListener("pointerleave", onPointerLeave);
@@ -767,6 +874,7 @@ export function AsciiBackground({ variant = "bio" }: AsciiBackgroundProps) {
       if (scrollRaf) cancelAnimationFrame(scrollRaf);
       ro.disconnect();
       io?.disconnect();
+      tintMo?.disconnect();
       if (!isReveal && !isDm) {
         window.removeEventListener("pointermove", onPointerMove);
         window.removeEventListener("pointerleave", onPointerLeave);

@@ -1075,7 +1075,8 @@ body {
   z-index: 0;
   background-color: var(--color-bg);
   isolation: isolate;
-  transition: background-color 900ms ease;
+  /* Enter + leave must share the same curve — hover preview toggles data-tint both ways */
+  transition: background-color 1000ms ease-in-out;
   /* Darker glyph ink than bio/reveal — DM-only */
   --ascii-color: #0e0e0c;
 }
@@ -1147,7 +1148,7 @@ body {
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   overflow: hidden;
-  transition: transform 900ms ease;
+  transition: transform 1000ms ease-in-out;
 }
 
 @media (hover: hover) {
@@ -1160,7 +1161,7 @@ body {
   display: block;
   width: 100%;
   height: auto;
-  transition: opacity 900ms ease;
+  transition: opacity 1000ms ease-in-out;
 }
 
 .dm-layer[data-tint="default"] .dm-mark__image {
@@ -1176,8 +1177,13 @@ body {
   position: absolute;
   inset: 0;
   opacity: 0;
+  /* Keep a color declared so leave can fade opacity — untinted rules used to
+     drop `background` instantly when data-tint left gold/blue (harsh snap). */
+  background-color: transparent;
   pointer-events: none;
-  transition: opacity 900ms ease;
+  transition:
+    opacity 1000ms ease-in-out,
+    background-color 1000ms ease-in-out;
   -webkit-mask-image: url("/dm-corner.png");
   mask-image: url("/dm-corner.png");
   -webkit-mask-size: 100% 100%;
@@ -1188,12 +1194,12 @@ body {
 
 .dm-layer[data-tint="gold"] .dm-mark::before {
   opacity: 0.88;
-  background: #c4882e;
+  background-color: #c4882e;
 }
 
 .dm-layer[data-tint="blue"] .dm-mark::before {
   opacity: 0.88;
-  background: #4b89c0;
+  background-color: #4b89c0;
 }
 
 .dm-layer-footer {
