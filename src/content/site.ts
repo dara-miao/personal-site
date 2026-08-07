@@ -119,7 +119,7 @@ export const site = {
       {
         type: "text" as const,
         value:
-          ", USC's startup accelerator, where I PM'd for portfolio companies like ",
+          ", USC's startup accelerator, where I PM'd for portcos like ",
       },
       { type: "link" as const, href: "https://www.withnara.com/", label: "Nara" },
       { type: "text" as const, value: " and " },
@@ -130,10 +130,7 @@ export const site = {
         href: "https://www.linkedin.com/posts/dara-miao_startuplaunch-startupaccelerator-win-activity-7412530621924929536-3ROi",
         label: "Launch '25",
       },
-      {
-        type: "text" as const,
-        value: " by building new features to improve accuracy by 35%.",
-      },
+      { type: "text" as const, value: "." },
     ],
     [
       { type: "text" as const, value: "I'm exploring VC as a summer fellow at " },
